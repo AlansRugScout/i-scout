@@ -477,7 +477,7 @@
     <p class="section-sub">Tell us what you're hunting and we'll have your Scout live within 24 hours.</p>
 
     <div class="intake-form">
-      <form id="brief-form" onsubmit="handleSubmit(event)">
+      <form id="brief-form" action="https://formspree.io/f/xbdblnrz" method="POST">
 
         <p class="form-section-title">Your details</p>
         <div class="form-grid">
@@ -598,18 +598,6 @@
 </footer>
 
 <script>
-function handleSubmit(e) {
-  e.preventDefault();
-  const form = document.getElementById('brief-form');
-  const success = document.getElementById('form-success');
-  form.style.display = 'none';
-  success.style.display = 'block';
-
-  // In production this would POST to your backend
-  // For now it shows the success message
-  console.log('Brief submitted');
-}
-
 // Smooth scroll for nav links
 document.querySelectorAll('a[href^="#"]').forEach(a => {
   a.addEventListener('click', e => {
