@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
- 
+
   :root {
     --parchment:    #f5edd6;
     --parchment-dk: #e8d9b5;
@@ -32,9 +32,9 @@
     --white:        #fffdf7;
     --shadow:       rgba(44,31,14,0.15);
   }
- 
+
   html { scroll-behavior: smooth; }
- 
+
   body {
     background-color: var(--parchment);
     background-image:
@@ -45,7 +45,7 @@
     font-size: 17px;
     line-height: 1.7;
   }
- 
+
   /* ── NAV ── */
   nav {
     position: sticky;
@@ -79,10 +79,10 @@
     gap: 6px;
   }
   .nav-back:hover { color: var(--gold-lt); }
- 
+
   /* ── LAYOUT ── */
   .container { max-width: 860px; margin: 0 auto; padding: 0 2rem; }
- 
+
   /* ── REPORT HEADER ── */
   .report-header {
     background: var(--ink);
@@ -122,7 +122,7 @@
     line-height: 1.6;
   }
   .report-subtitle span { color: rgba(255,255,255,0.3); margin: 0 7px; }
- 
+
   .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -168,7 +168,7 @@
     border-radius: 2px;
     margin-top: 6px;
   }
- 
+
   /* ── BODY SECTIONS ── */
   .rpt-section {
     padding: 1.75rem 0;
@@ -184,7 +184,7 @@
     color: var(--gold);
     margin-bottom: 1rem;
   }
- 
+
   /* ── VERDICT BOXES ── */
   .verdict {
     border-radius: 3px;
@@ -214,7 +214,7 @@
     letter-spacing: 0.04em;
   }
   .verdict-text { font-size: 14.5px; color: var(--ink-lt); line-height: 1.8; }
- 
+
   /* ── CONDITION GRADES ── */
   .overall-grade-row {
     display: flex;
@@ -245,7 +245,7 @@
   .grade-sub { font-size: 0.8rem; color: var(--green); font-weight: 600; }
   .grade-desc strong { font-size: 15px; font-weight: 600; color: var(--ink); display: block; margin-bottom: 3px; }
   .grade-desc span { font-size: 13.5px; color: var(--sepia); }
- 
+
   .grade-bars { margin-bottom: 1.25rem; }
   .grade-row {
     display: flex;
@@ -277,7 +277,7 @@
     line-height: 1.8;
     font-style: italic;
   }
- 
+
   /* ── PROVENANCE ── */
   .prov-box {
     background: var(--white);
@@ -296,7 +296,7 @@
     margin-bottom: 6px;
   }
   .prov-text { font-size: 14.5px; color: var(--ink-lt); line-height: 1.75; }
- 
+
   /* ── COMPARABLE SALES ── */
   .comp-table {
     width: 100%;
@@ -326,7 +326,7 @@
   .pill-above { display: inline-block; font-family: 'Cinzel', serif; font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: 700; background: #faece7; color: #993c1d; letter-spacing: 0.04em; }
   .pill-fair  { display: inline-block; font-family: 'Cinzel', serif; font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: 700; background: var(--green-pale); color: var(--green); letter-spacing: 0.04em; }
   .pill-below { display: inline-block; font-family: 'Cinzel', serif; font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: 700; background: var(--blue-pale); color: #185fa5; letter-spacing: 0.04em; }
- 
+
   /* ── VALUATION ── */
   .val-box {
     background: var(--ink);
@@ -384,7 +384,7 @@
     text-transform: uppercase;
     color: #1a3a08;
   }
- 
+
   /* ── FOOTNOTE ── */
   .footnote {
     padding: 1.5rem 0 2.5rem;
@@ -392,7 +392,7 @@
     color: var(--sepia);
     line-height: 1.75;
   }
- 
+
   /* ── FOOTER ── */
   footer {
     background: #1a0e05;
@@ -416,7 +416,7 @@
     text-decoration: none;
   }
   .footer-right { font-size: 12px; color: rgba(255,255,255,0.35); }
- 
+
   @media (max-width: 600px) {
     nav, .container { padding: 0 1.25rem; }
     .val-box { flex-direction: column; gap: 1.5rem; }
@@ -426,17 +426,17 @@
 </style>
 </head>
 <body>
- 
+
 <nav>
   <a href="/" class="nav-logo">i-scout.eu</a>
   <a href="/" class="nav-back">← Back to homepage</a>
 </nav>
- 
+
 <!-- REPORT HEADER -->
 <div class="report-header">
   <div class="container">
-    <div class="screenshot-badge">◈ &nbsp; Sample screenshot — updated monthly. Not a live report.</div>
-    <h1>Appraisal Report — Antique Map</h1>
+    <div class="screenshot-badge">◈ &nbsp; Deep Analysis — sample screenshot, updated monthly. Not a live report.</div>
+    <h1>Deep Analysis Report — Antique Map</h1>
     <p class="report-subtitle">
       eBay listing #294710038845
       <span>·</span>
@@ -463,9 +463,9 @@
     </div>
   </div>
 </div>
- 
+
 <div class="container">
- 
+
   <!-- AUTHENTICITY -->
   <div class="rpt-section">
     <h2>Authenticity assessment</h2>
@@ -483,7 +483,7 @@
       <p class="verdict-text">Speed's Theatre ran through multiple editions from 1611 to 1676. The listing does not specify the edition, which affects value — earlier editions (1611–1627) command a premium over later ones (1662–1676). The plate wear visible in the image suggests a mid-period printing (c.1627–1650), which is still excellent. We recommend asking the seller to confirm the verso text date before purchasing. This does not affect the authenticity assessment — all editions are genuine Speed maps.</p>
     </div>
   </div>
- 
+
   <!-- CONDITION -->
   <div class="rpt-section">
     <h2>Condition assessment</h2>
@@ -533,7 +533,7 @@
       The paper is bright with no foxing, browning, or watermarking. Margins are full on three sides with a slightly close trim to the top — standard for this edition and not a deduction. The centrefold is clean and flat, indicating the map has been stored pressed rather than folded in a volume for extended periods. The original hand colour is vivid and unevenly applied in places (consistent with period colourist work rather than later enhancement). No evidence of backing, lining, or infill. A genuinely fine example — condition this clean at this price is unusual.
     </div>
   </div>
- 
+
   <!-- PROVENANCE -->
   <div class="rpt-section">
     <h2>Provenance &amp; edition notes</h2>
@@ -546,7 +546,7 @@
       <p class="prov-text">The seller has listed this as "antique map — old England county" with minimal description, suggesting unfamiliarity with the Speed market. The Buy It Now price of £249 is consistent with a general antique dealer's pricing rather than a specialist map dealer's. Specialist map dealers routinely list comparable Speed maps at £350–£550. The excellent condition of this example pushes the value toward the upper end of that range.</p>
     </div>
   </div>
- 
+
   <!-- COMPARABLE SALES -->
   <div class="rpt-section">
     <h2>Comparable recent sales</h2>
@@ -599,7 +599,7 @@
       </tbody>
     </table>
   </div>
- 
+
   <!-- VALUATION -->
   <div class="rpt-section">
     <h2>Valuation &amp; recommendation</h2>
@@ -616,20 +616,20 @@
       </div>
     </div>
   </div>
- 
+
   <!-- FOOTNOTE -->
   <p class="footnote">
     This report was generated by i-Scout using Anthropic Claude Advanced Vision and eBay completed listing data. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments are based on available photographs only and do not replace physical examination by a qualified specialist. There is no substitute for seeing an item in person before purchasing. i-Scout accepts no liability for purchasing decisions made on the basis of this report. Auction comparables sourced from public records. &nbsp;·&nbsp; In most circumstances you are protected by <strong>eBay's Money Back Guarantee</strong> — if an item is not as described, eBay's Buyer Protection policy generally entitles you to a full refund. &nbsp;·&nbsp; <strong>i-scout.eu</strong> &nbsp;·&nbsp; Sample report — updated monthly.
   </p>
- 
+
 </div><!-- /container -->
- 
+
 <footer>
   <div class="footer-inner">
     <a href="/" class="footer-logo">i-scout.eu</a>
     <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; © 2026 i-scout.eu</div>
   </div>
 </footer>
- 
+
 </body>
 </html>
