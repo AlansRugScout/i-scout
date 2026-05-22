@@ -12,7 +12,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 async function sendOwnerAlert(data) {
   const { name, email, plan, category, description, budget } = data;
   await resend.emails.send({
-    from: 'i-Scout <alan@aka.ie>',
+    from: 'i-Scout <scout@i-scout.eu>',
+    reply_to: 'alan@aka.ie',
     to: 'alan@aka.ie',
     subject: `New i-Scout subscriber — ${name} — ${plan}`,
     html: `
@@ -57,7 +58,8 @@ async function sendOwnerAlert(data) {
 async function sendWelcomeEmail(data) {
   const { name, email, plan, category } = data;
   await resend.emails.send({
-    from: 'i-Scout <alan@aka.ie>',
+    from: 'i-Scout <scout@i-scout.eu>',
+    reply_to: 'alan@aka.ie',
     to: email,
     subject: `Your i-Scout is active — welcome aboard`,
     html: `
