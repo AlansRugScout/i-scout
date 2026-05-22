@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>i-Scout Sample Report — Victorian Pocket Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0f2744;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --blue-mid: #B5D4F4;
+    --amber: #EF9F27;
+    --amber-light: #FAEEDA;
+    --amber-mid: #FAC775;
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --green-mid: #C0DD97;
+    --red-light: #FCEBEB;
+    --red-mid: #F7C1C1;
+    --red: #A32D2D;
+    --text: #1a1a1a;
+    --text-secondary: #555;
+    --text-tertiary: #888;
+    --border: rgba(0,0,0,0.09);
+    --border-strong: rgba(0,0,0,0.16);
+    --surface: #f7f6f2;
+    --white: #ffffff;
+    --radius-sm: 5px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--white);
+    line-height: 1.6;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 2rem;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--navy);
+    text-decoration: none;
+  }
+  .nav-logo em { font-style: italic; color: var(--blue); }
+  .nav-back {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .nav-back:hover { color: var(--text); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 860px; margin: 0 auto; padding: 0 2rem; }
+
+  /* ── REPORT HEADER ── */
+  .report-header {
+    padding: 2rem 0 1.75rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .report-meta {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .screenshot-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--amber-light);
+    border: 0.5px solid var(--amber-mid);
+    color: #633806;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 13px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+  .report-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.4rem, 3vw, 1.9rem);
+    font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 0.4rem;
+  }
+  .report-subtitle { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; }
+  .report-subtitle span { color: var(--text-tertiary); margin: 0 6px; }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 1.25rem;
+  }
+  .summary-card {
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+  .summary-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 5px;
+  }
+  .summary-value { font-size: 14px; font-weight: 500; color: var(--text); }
+  .summary-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+  .price-big {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 500;
+    color: var(--navy);
+  }
+
+  /* ── SECTIONS ── */
+  .rpt-section {
+    padding: 1.75rem 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .rpt-section:last-child { border-bottom: none; }
+  .rpt-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 1rem;
+  }
+
+  /* ── VERDICT BOXES ── */
+  .verdict {
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+  .verdict-pass { background: var(--green-light); border: 0.5px solid var(--green-mid); }
+  .verdict-warn { background: var(--amber-light); border: 0.5px solid var(--amber-mid); }
+  .verdict-fail { background: var(--red-light); border: 0.5px solid var(--red-mid); }
+  .verdict-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .verdict-icon { font-size: 20px; flex-shrink: 0; }
+  .badge {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 4px;
+  }
+  .badge-pass { background: var(--green-mid); color: #1a3a08; }
+  .badge-warn { background: var(--amber-mid); color: #412402; }
+  .badge-fail { background: var(--red-mid); color: #501313; }
+  .badge-info { background: var(--blue-mid); color: #042C53; }
+  .confidence { font-size: 12px; color: var(--text-tertiary); }
+  .verdict-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.75; }
+
+  /* ── CONDITION GRADES ── */
+  .overall-grade-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .grade-letter-box {
+    width: 60px;
+    height: 60px;
+    background: var(--green-light);
+    border: 0.5px solid var(--green-mid);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .grade-letter {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: var(--green);
+    line-height: 1;
+  }
+  .grade-plus { font-size: 1rem; color: var(--green); font-weight: 500; }
+  .grade-desc-text { font-size: 13px; color: var(--text-secondary); }
+  .grade-desc-text strong { color: var(--text); font-weight: 500; }
+
+  .grade-bars { margin-bottom: 1rem; }
+  .grade-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 11px;
+  }
+  .grade-name { font-size: 13px; color: var(--text-secondary); min-width: 120px; }
+  .grade-track {
+    flex: 1;
+    height: 5px;
+    background: #e8e6e0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .grade-fill { height: 100%; border-radius: 3px; }
+  .fill-high { background: #639922; }
+  .fill-mid { background: #EF9F27; }
+  .fill-low { background: #E24B4A; }
+  .fill-neutral { background: #aaa; }
+  .grade-score { font-size: 13px; font-weight: 500; min-width: 80px; text-align: right; color: var(--text); }
+  .grade-notes { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+
+  /* ── COMPARABLE SALES ── */
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .comp-table th {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    text-align: left;
+    padding: 6px 0 10px;
+    border-bottom: 0.5px solid var(--border-strong);
+  }
+  .comp-table td {
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+  .comp-table td:first-child { color: var(--text); }
+  .comp-table td.price { font-weight: 500; color: var(--text); }
+  .pill-above { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500; background: #FAECE7; color: #993C1D; }
+  .pill-fair  { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500; background: var(--green-light); color: var(--green); }
+  .pill-below { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500; background: var(--blue-light); color: var(--blue); }
+
+  /* ── VALUATION ── */
+  .val-box {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .val-left { flex-shrink: 0; }
+  .val-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .val-range-big {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .val-sub { font-size: 13px; color: var(--text-secondary); }
+  .val-right { flex: 1; min-width: 220px; }
+  .val-right h3 { font-size: 13.5px; font-weight: 500; margin-bottom: 8px; }
+  .val-right p { font-size: 13.5px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 12px; }
+  .rec-verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--green-light);
+    border: 0.5px solid var(--green-mid);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a3a08;
+  }
+  .rec-verdict svg { flex-shrink: 0; }
+
+  /* ── FOOTNOTE ── */
+  .footnote {
+    padding: 1.5rem 0 2.5rem;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.7;
+    border-top: 0.5px solid var(--border);
+    margin-top: 0;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 2rem 0;
+    border-top: 0.5px solid var(--border);
+    background: var(--surface);
+  }
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .footer-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--navy);
+    text-decoration: none;
+  }
+  .footer-logo em { font-style: italic; color: var(--blue); }
+  .footer-right { font-size: 12px; color: var(--text-tertiary); }
+
+  @media (max-width: 600px) {
+    nav, .container { padding: 0 1.25rem; }
+    .val-box { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="i-scout-homepage.html" class="nav-logo"><em>i</em>-Scout</a>
+  <a href="i-scout-homepage.html" class="nav-back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to homepage
+  </a>
+</nav>
+
+<div class="container">
+
+  <!-- REPORT HEADER -->
+  <div class="report-header">
+    <div class="report-meta">
+      <div>
+        <h1>Appraisal Report — Victorian Pocket Watch</h1>
+        <p class="report-subtitle">
+          eBay listing #387204918265
+          <span>·</span>
+          Monitored category: Victorian pocket watches
+          <span>·</span>
+          Alert issued: 14 May 2025, 09:42
+        </p>
+      </div>
+      <div class="screenshot-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Sample screenshot — updated monthly
+      </div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Item identified</div>
+        <div class="summary-value">English fusee pocket watch, c.1875–1885</div>
+        <div class="summary-sub">Maker: Dent, London · Full hunter silver case · 15 jewel movement</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Asking price</div>
+        <div class="price-big">£385</div>
+        <div class="summary-sub">Buy It Now · Free postage · 12 watchers</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Our verdict</div>
+        <div class="summary-value" style="color: var(--green);">Fair value — worth pursuing</div>
+        <div class="summary-sub">Sits within estimated range of £360–£440</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICITY -->
+  <div class="rpt-section">
+    <h2>Authenticity assessment</h2>
+    <div class="verdict verdict-pass">
+      <div class="verdict-header">
+        <svg class="verdict-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        <span class="badge badge-pass">Likely authentic</span>
+        <span class="confidence">Confidence: 87%</span>
+      </div>
+      <p class="verdict-text">Hallmarks on the case are consistent with English silver assay offices of the period (Chester, 1879). The movement photograph shows an 8-pillar full plate layout with a fusee chain intact — construction consistent with Dent workmanship. The serial number 31847 falls within known Dent production ranges for this era. Minor note: the dust band appears to be a later replacement (c.1910–1920), which is common and does not affect authenticity of the main piece. No indications of a marriage between mismatched movement and case.</p>
+    </div>
+    <div class="verdict verdict-warn">
+      <div class="verdict-header">
+        <svg class="verdict-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#854F0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span class="badge badge-warn">One point to verify</span>
+      </div>
+      <p class="verdict-text">The seller has not photographed the movement from the rear. Before purchasing, request a photo of the back plate showing the full engraving and balance cock — this is where Dent's signature finishing is most visible and most easily distinguished from lesser makers with similar outward cases. This is a standard request and any legitimate seller will accommodate it.</p>
+    </div>
+  </div>
+
+  <!-- CONDITION -->
+  <div class="rpt-section">
+    <h2>Condition assessment</h2>
+    <div class="overall-grade-row">
+      <div class="grade-letter-box">
+        <span class="grade-letter">B</span>
+        <span class="grade-plus">+</span>
+      </div>
+      <div>
+        <div style="font-size:15px; font-weight:500; margin-bottom:3px;">Very good — above average for age</div>
+        <div class="grade-desc-text">Presents well for display or light wearing. No repairs or major losses.</div>
+      </div>
+    </div>
+    <div class="grade-bars">
+      <div class="grade-row">
+        <span class="grade-name">Case exterior</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:78%"></div></div>
+        <span class="grade-score">7.8 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Dial</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:82%"></div></div>
+        <span class="grade-score">8.2 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Movement</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:85%"></div></div>
+        <span class="grade-score">8.5 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Crown &amp; bow</span>
+        <div class="grade-track"><div class="grade-fill fill-mid" style="width:62%"></div></div>
+        <span class="grade-score">6.2 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Dust band</span>
+        <div class="grade-track"><div class="grade-fill fill-neutral" style="width:50%"></div></div>
+        <span class="grade-score">Later replacement</span>
+      </div>
+    </div>
+    <p class="grade-notes">The dial is particularly fine — enamel appears crack-free with original blued-steel hands present. The case shows honest age wear on the hinge and bow with no heavy denting or repairs. The crown shows slight bruising consistent with regular use but is otherwise intact. Movement condition is excellent relative to age and supports the asking price.</p>
+  </div>
+
+  <!-- COMPARABLE SALES -->
+  <div class="rpt-section">
+    <h2>Comparable recent sales</h2>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Condition</th>
+          <th>Sold</th>
+          <th>Price</th>
+          <th>vs this listing</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Dent London fusee, c.1880, silver hunter</td>
+          <td>Very good</td>
+          <td>Feb 2025</td>
+          <td class="price">£420</td>
+          <td><span class="pill-below">9% below ask</span></td>
+        </tr>
+        <tr>
+          <td>Dent London fusee, c.1878, gold-filled hunter</td>
+          <td>Good</td>
+          <td>Jan 2025</td>
+          <td class="price">£510</td>
+          <td><span class="pill-below">24% below ask</span></td>
+        </tr>
+        <tr>
+          <td>English fusee full hunter, c.1882 (unmarked maker)</td>
+          <td>Very good</td>
+          <td>Mar 2025</td>
+          <td class="price">£290</td>
+          <td><span class="pill-above">25% above sold</span></td>
+        </tr>
+        <tr>
+          <td>Dent London fusee, c.1875, silver hunter</td>
+          <td>Excellent</td>
+          <td>Apr 2025</td>
+          <td class="price">£480</td>
+          <td><span class="pill-below">20% below ask</span></td>
+        </tr>
+        <tr>
+          <td>Dent London fusee, c.1885, silver hunter</td>
+          <td>Fair</td>
+          <td>Mar 2025</td>
+          <td class="price">£310</td>
+          <td><span class="pill-above">19% above sold</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- VALUATION -->
+  <div class="rpt-section">
+    <h2>Valuation &amp; recommendation</h2>
+    <div class="val-box">
+      <div class="val-left">
+        <div class="val-label">i-Scout fair value estimate</div>
+        <div class="val-range-big">£360–£440</div>
+        <div class="val-sub">Asking price of £385 sits within range</div>
+      </div>
+      <div class="val-right">
+        <h3>Our recommendation</h3>
+        <p>This listing represents fair value for a genuine Dent fusee in this condition. The asking price is not a bargain, but it is not inflated. If the back plate photograph confirms expected finishing quality, this is a solid purchase at or near the asking price. We would not recommend bidding above £440 without additional provenance information.</p>
+        <div class="rec-verdict">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1a3a08" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Fair value — worth pursuing
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTNOTE -->
+  <p class="footnote">
+    This report was generated by i-Scout using Anthropic Claude Advanced Vision and eBay completed listing data. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments are based on available photographs only and do not replace physical examination by a qualified horologist. i-Scout accepts no liability for purchasing decisions made on the basis of this report. &nbsp;·&nbsp; <strong>i-scout.eu</strong> &nbsp;·&nbsp; Sample report — updated monthly.
+  </p>
+
+</div><!-- /container -->
+
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <a href="i-scout-homepage.html" class="footer-logo"><em>i</em>-Scout</a>
+      <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; &copy; 2025 i-scout.eu</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
