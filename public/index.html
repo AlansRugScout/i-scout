@@ -1008,12 +1008,46 @@ footer {
           <div class="form-group">
             <label for="plan">Subscription plan</label>
             <select id="plan" name="plan">
-              <option>Trial — €20/month</option>
+              <option>Starter — €20/month</option>
               <option>Collector — €45/month</option>
               <option>Dealer — €90/month</option>
             </select>
           </div>
         </div>
+ 
+        <div class="form-group">
+          <label for="negative">Exclude from my alerts <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--sepia);">(optional)</span></label>
+          <input type="text" id="negative" name="negative" placeholder="e.g. cleaning, modern, reproduction, synthetic, damaged, parts only">
+          <p style="font-size:13px; color:var(--sepia); margin-top:5px; font-style:italic;">Words or phrases you never want to see in your alerts. Separate with commas.</p>
+        </div>
+ 
+        <div class="form-row">
+          <div class="form-group">
+            <label for="territories">eBay territories to scan</label>
+            <select id="territories" name="territories">
+              <option value="all" selected>All territories (worldwide)</option>
+              <option value="selected">Selected territories only — please specify in brief above</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="frequency">Alert frequency</label>
+            <select id="frequency" name="frequency">
+              <option value="immediate" selected>As they happen (immediate)</option>
+              <option value="morning">Morning digest (8am daily)</option>
+              <option value="evening">Evening digest (6pm daily)</option>
+              <option value="twice">Twice daily (8am &amp; 6pm)</option>
+              <option value="weekly">Weekly summary (Monday morning)</option>
+            </select>
+            <p style="font-size:13px; color:var(--sepia); margin-top:5px; font-style:italic;">You can change this anytime by emailing <a href="mailto:alan@aka.ie" style="color:var(--gold);">alan@aka.ie</a></p>
+          </div>
+        </div>
+ 
+        <div class="form-group">
+          <label for="images">Reference images <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--sepia);">(optional)</span></label>
+          <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/webp" multiple style="padding:8px 10px; font-size:14px; font-family:'EB Garamond',serif;">
+          <p style="font-size:13px; color:var(--sepia); margin-top:5px; font-style:italic;">Upload images of items you're looking for — the more specific you are, the better your Scout performs. JPG, PNG or WEBP. Max 3 images.</p>
+        </div>
+ 
         <button type="submit" class="form-submit">Submit your brief →</button>
       </form>
       <div class="form-success" id="form-success">
@@ -1060,18 +1094,37 @@ async function handleSubmit(e) {
  
   const planRaw = document.getElementById('plan').value;
   const planMap = {
-    'Trial — €20/month': 'trial',
+    'Starter — €20/month': 'trial',
     'Collector — €45/month': 'collector',
     'Dealer — €90/month': 'dealer',
   };
  
+  // Handle image uploads first if any
+  const imageInput = document.getElementById('images');
+  const imageFiles = imageInput?.files || [];
+  const imageDataUrls = [];
+ 
+  if (imageFiles.length > 0) {
+    for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
+      const reader = new FileReader();
+      await new Promise(resolve => {
+        reader.onload = e => { imageDataUrls.push(e.target.result); resolve(); };
+        reader.readAsDataURL(imageFiles[i]);
+      });
+    }
+  }
+ 
   const payload = {
-    plan: planMap[planRaw] || 'trial',
-    name: document.getElementById('name').value,
-    email: document.getElementById('email').value,
-    category: document.getElementById('category').value,
+    plan:        planMap[planRaw] || 'trial',
+    name:        document.getElementById('name').value,
+    email:       document.getElementById('email').value,
+    category:    document.getElementById('category').value,
     description: document.getElementById('description').value,
-    budget: document.getElementById('budget').value,
+    budget:      document.getElementById('budget').value,
+    negative:    document.getElementById('negative').value,
+    territories: document.getElementById('territories').value,
+    frequency:   document.getElementById('frequency').value,
+    images:      imageDataUrls,
   };
  
   try {
