@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+ 
   :root {
     --navy: #0f2744;
     --blue: #185FA5;
@@ -34,14 +34,14 @@
     --radius-md: 10px;
     --radius-lg: 14px;
   }
-
+ 
   body {
     font-family: 'DM Sans', sans-serif;
     color: var(--text);
     background: var(--white);
     line-height: 1.6;
   }
-
+ 
   /* ── NAV ── */
   nav {
     position: sticky;
@@ -73,10 +73,10 @@
     gap: 5px;
   }
   .nav-back:hover { color: var(--text); }
-
+ 
   /* ── LAYOUT ── */
   .container { max-width: 860px; margin: 0 auto; padding: 0 2rem; }
-
+ 
   /* ── REPORT HEADER ── */
   .report-header {
     padding: 2rem 0 1.75rem;
@@ -112,7 +112,7 @@
   }
   .report-subtitle { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; }
   .report-subtitle span { color: var(--text-tertiary); margin: 0 6px; }
-
+ 
   .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -140,7 +140,7 @@
     font-weight: 500;
     color: var(--navy);
   }
-
+ 
   /* ── SECTIONS ── */
   .rpt-section {
     padding: 1.75rem 0;
@@ -154,7 +154,7 @@
     color: var(--navy);
     margin-bottom: 1rem;
   }
-
+ 
   /* ── VERDICT BOXES ── */
   .verdict {
     border-radius: var(--radius-lg);
@@ -178,7 +178,7 @@
   .badge-info { background: var(--blue-mid); color: #042C53; }
   .confidence { font-size: 12px; color: var(--text-tertiary); }
   .verdict-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.75; }
-
+ 
   /* ── CONDITION GRADES ── */
   .overall-grade-row {
     display: flex;
@@ -208,7 +208,7 @@
   .grade-plus { font-size: 1rem; color: var(--green); font-weight: 500; }
   .grade-desc-text { font-size: 13px; color: var(--text-secondary); }
   .grade-desc-text strong { color: var(--text); font-weight: 500; }
-
+ 
   .grade-bars { margin-bottom: 1rem; }
   .grade-row {
     display: flex;
@@ -231,7 +231,7 @@
   .fill-neutral { background: #aaa; }
   .grade-score { font-size: 13px; font-weight: 500; min-width: 80px; text-align: right; color: var(--text); }
   .grade-notes { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
-
+ 
   /* ── COMPARABLE SALES ── */
   .comp-table {
     width: 100%;
@@ -259,7 +259,7 @@
   .pill-above { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500; background: #FAECE7; color: #993C1D; }
   .pill-fair  { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500; background: var(--green-light); color: var(--green); }
   .pill-below { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500; background: var(--blue-light); color: var(--blue); }
-
+ 
   /* ── VALUATION ── */
   .val-box {
     background: var(--surface);
@@ -304,7 +304,7 @@
     color: #1a3a08;
   }
   .rec-verdict svg { flex-shrink: 0; }
-
+ 
   /* ── FOOTNOTE ── */
   .footnote {
     padding: 1.5rem 0 2.5rem;
@@ -314,7 +314,7 @@
     border-top: 0.5px solid var(--border);
     margin-top: 0;
   }
-
+ 
   /* ── FOOTER ── */
   footer {
     padding: 2rem 0;
@@ -337,7 +337,7 @@
   }
   .footer-logo em { font-style: italic; color: var(--blue); }
   .footer-right { font-size: 12px; color: var(--text-tertiary); }
-
+ 
   @media (max-width: 600px) {
     nav, .container { padding: 0 1.25rem; }
     .val-box { flex-direction: column; }
@@ -345,22 +345,22 @@
 </style>
 </head>
 <body>
-
+ 
 <nav>
-  <a href="i-scout-homepage.html" class="nav-logo"><em>i</em>-Scout</a>
-  <a href="i-scout-homepage.html" class="nav-back">
+  <a href="/" class="nav-logo"><em>i</em>-Scout</a>
+  <a href="/" class="nav-back">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     Back to homepage
   </a>
 </nav>
-
+ 
 <div class="container">
-
+ 
   <!-- REPORT HEADER -->
   <div class="report-header">
     <div class="report-meta">
       <div>
-        <h1>Appraisal Report — Victorian Pocket Watch</h1>
+        <h1>Deep Analysis Report — Victorian Pocket Watch</h1>
         <p class="report-subtitle">
           eBay listing #387204918265
           <span>·</span>
@@ -371,7 +371,7 @@
       </div>
       <div class="screenshot-badge">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Sample screenshot — updated monthly
+        Deep Analysis — sample screenshot, updated monthly
       </div>
     </div>
     <div class="summary-grid">
@@ -392,7 +392,7 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- AUTHENTICITY -->
   <div class="rpt-section">
     <h2>Authenticity assessment</h2>
@@ -412,7 +412,7 @@
       <p class="verdict-text">The seller has not photographed the movement from the rear. Before purchasing, request a photo of the back plate showing the full engraving and balance cock — this is where Dent's signature finishing is most visible and most easily distinguished from lesser makers with similar outward cases. This is a standard request and any legitimate seller will accommodate it.</p>
     </div>
   </div>
-
+ 
   <!-- CONDITION -->
   <div class="rpt-section">
     <h2>Condition assessment</h2>
@@ -455,7 +455,7 @@
     </div>
     <p class="grade-notes">The dial is particularly fine — enamel appears crack-free with original blued-steel hands present. The case shows honest age wear on the hinge and bow with no heavy denting or repairs. The crown shows slight bruising consistent with regular use but is otherwise intact. Movement condition is excellent relative to age and supports the asking price.</p>
   </div>
-
+ 
   <!-- COMPARABLE SALES -->
   <div class="rpt-section">
     <h2>Comparable recent sales</h2>
@@ -508,7 +508,7 @@
       </tbody>
     </table>
   </div>
-
+ 
   <!-- VALUATION -->
   <div class="rpt-section">
     <h2>Valuation &amp; recommendation</h2>
@@ -528,22 +528,23 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- FOOTNOTE -->
   <p class="footnote">
-    This report was generated by i-Scout using Anthropic Claude Advanced Vision and eBay completed listing data. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments are based on available photographs only and do not replace physical examination by a qualified horologist. i-Scout accepts no liability for purchasing decisions made on the basis of this report. &nbsp;·&nbsp; <strong>i-scout.eu</strong> &nbsp;·&nbsp; Sample report — updated monthly.
+    This report was generated by i-Scout using Anthropic Claude Advanced Vision and eBay completed listing data. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments are based on available photographs only and do not replace physical examination by a qualified horologist. There is no substitute for seeing an item in person before purchasing. i-Scout accepts no liability for purchasing decisions made on the basis of this report. &nbsp;·&nbsp; In most circumstances you are protected by <strong>eBay's Money Back Guarantee</strong> — if an item is not as described, eBay's Buyer Protection policy generally entitles you to a full refund. &nbsp;·&nbsp; <strong>i-scout.eu</strong> &nbsp;·&nbsp; Sample report — updated monthly.
   </p>
-
+ 
 </div><!-- /container -->
-
+ 
 <footer>
   <div class="container">
     <div class="footer-inner">
-      <a href="i-scout-homepage.html" class="footer-logo"><em>i</em>-Scout</a>
+      <a href="/" class="footer-logo"><em>i</em>-Scout</a>
       <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; &copy; 2025 i-scout.eu</div>
     </div>
   </div>
 </footer>
-
+ 
 </body>
 </html>
+ 
