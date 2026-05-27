@@ -10,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // ── EMAIL FUNCTIONS ──────────────────────────────────────────────
 
 async function sendOwnerAlert(data) {
-  const { name, email, plan, category, description, budget } = data;
+  const { name, email, plan, category, description, budget, negative, territories, frequency, images } = data;
   await resend.emails.send({
     from: 'i-Scout <scout@i-scout.eu>',
     reply_to: 'alan@aka.ie',
@@ -41,9 +41,25 @@ async function sendOwnerAlert(data) {
             <td style="padding: 10px 0; color: #8b6344;">Budget</td>
             <td style="padding: 10px 0; color: #2c1f0e;">${budget || 'Not specified'}</td>
           </tr>
-          <tr>
+          <tr style="border-bottom: 1px solid #e8d9b5;">
+            <td style="padding: 10px 0; color: #8b6344;">Territories</td>
+            <td style="padding: 10px 0; color: #2c1f0e;">${territories === 'all' ? 'All territories (worldwide)' : 'Selected territories — see brief'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8d9b5;">
+            <td style="padding: 10px 0; color: #8b6344;">Alert frequency</td>
+            <td style="padding: 10px 0; color: #2c1f0e;">${frequency || 'Immediate'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8d9b5;">
+            <td style="padding: 10px 0; color: #8b6344;">Exclude keywords</td>
+            <td style="padding: 10px 0; color: #2c1f0e;">${negative || 'None specified'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8d9b5;">
             <td style="padding: 10px 0; color: #8b6344; vertical-align: top;">Brief</td>
             <td style="padding: 10px 0; color: #2c1f0e; line-height: 1.6;">${description || 'Not provided'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: #8b6344; vertical-align: top;">Images</td>
+            <td style="padding: 10px 0; color: #2c1f0e;">${images && images.length > 0 ? `${images.length} image(s) uploaded — check attachments` : 'None uploaded'}</td>
           </tr>
         </table>
         <div style="margin-top: 1.5rem; background: #2c1f0e; padding: 1rem 1.25rem; border-radius: 3px;">
@@ -123,6 +139,10 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       category:    session.metadata?.category    || 'Not specified',
       description: session.metadata?.description || '',
       budget:      session.metadata?.budget      || '',
+      negative:    session.metadata?.negative    || '',
+      territories: session.metadata?.territories || 'all',
+      frequency:   session.metadata?.frequency   || 'immediate',
+      images:      [],
     };
 
     console.log(`New subscriber: ${data.email} — ${data.plan} — ${data.category}`);
@@ -153,7 +173,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── CHECKOUT ─────────────────────────────────────────────────────
 
 app.post('/create-checkout-session', async (req, res) => {
-  const { plan, category, description, budget, name, email } = req.body;
+  const { plan, category, description, budget, name, email, negative, territories, frequency } = req.body;
 
   const priceMap = {
     trial:     process.env.STRIPE_PRICE_TRIAL,
@@ -167,7 +187,7 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 
   const planLabels = {
-    trial:     'i-Scout Trial — €20/month',
+    trial:     'i-Scout Starter — €20/month',
     collector: 'i-Scout Collector — €45/month',
     dealer:    'i-Scout Dealer — €90/month',
   };
@@ -185,6 +205,9 @@ app.post('/create-checkout-session', async (req, res) => {
         category:    category || '',
         description: (description || '').substring(0, 500),
         budget:      budget || '',
+        negative:    (negative || '').substring(0, 200),
+        territories: territories || 'all',
+        frequency:   frequency || 'immediate',
       },
       subscription_data: {
         metadata: {
