@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3scouts Sample Report — Antique Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --parchment:    #f5edd6;
+    --parchment-dk: #e8d9b5;
+    --ink:          #2c1f0e;
+    --ink-lt:       #5a3e20;
+    --sepia:        #8b6344;
+    --sepia-lt:     #b8945a;
+    --gold:         #c9922a;
+    --gold-lt:      #e8b84b;
+    --gold-pale:    #f5e6c0;
+    --red:          #8b2020;
+    --red-lt:       #f7c1c1;
+    --red-pale:     #fcebeb;
+    --green:        #1a4a2e;
+    --green-lt:     #c0dd97;
+    --green-pale:   #eaf3de;
+    --amber-lt:     #fac775;
+    --amber-pale:   #faeeda;
+    --blue-lt:      #b5d4f4;
+    --blue-pale:    #e6f1fb;
+    --white:        #fffdf7;
+    --shadow:       rgba(44,31,14,0.15);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--parchment);
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(139,99,68,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(139,99,68,0.05) 0%, transparent 60%);
+    color: var(--ink);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.7;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--ink);
+    border-bottom: 2px solid var(--gold);
+    padding: 0 2.5rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold-lt);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+  .nav-back {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-back:hover { color: var(--gold-lt); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 860px; margin: 0 auto; padding: 0 2rem; }
+
+  /* ── REPORT HEADER ── */
+  .report-header {
+    background: var(--ink);
+    background-image: linear-gradient(160deg, #1a0e05 0%, #2c1f0e 60%, #1a0e05 100%);
+    border-bottom: 2px solid var(--gold);
+    padding: 2.5rem 2rem 2rem;
+  }
+  .report-header .container { position: relative; }
+  .screenshot-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(201,146,42,0.15);
+    border: 1px solid rgba(201,146,42,0.4);
+    color: var(--gold-lt);
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+  }
+  .report-header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.3rem, 3vw, 1.8rem);
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+  }
+  .report-subtitle {
+    font-size: 13.5px;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.6;
+  }
+  .report-subtitle span { color: rgba(255,255,255,0.3); margin: 0 7px; }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    margin-top: 1.5rem;
+  }
+  .summary-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(201,146,42,0.2);
+    border-radius: 3px;
+    padding: 14px 16px;
+  }
+  .summary-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .summary-value { font-size: 14px; font-weight: 500; color: var(--white); }
+  .summary-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 3px; line-height: 1.4; }
+  .price-big {
+    font-family: 'Cinzel', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--gold-lt);
+  }
+  .verdict-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green-pale);
+    border: 1px solid var(--green-lt);
+    color: var(--green);
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 5px 13px;
+    border-radius: 2px;
+    margin-top: 6px;
+  }
+
+  /* ── BODY SECTIONS ── */
+  .rpt-section {
+    padding: 1.75rem 0;
+    border-bottom: 1px solid var(--parchment-dk);
+  }
+  .rpt-section:last-of-type { border-bottom: none; }
+  .rpt-section h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1rem;
+  }
+
+  /* ── VERDICT BOXES ── */
+  .verdict {
+    border-radius: 3px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+  .verdict-pass { background: var(--green-pale); border: 1px solid var(--green-lt); border-left: 4px solid var(--green); }
+  .verdict-warn { background: var(--amber-pale); border: 1px solid var(--amber-lt); border-left: 4px solid var(--gold); }
+  .verdict-fail { background: var(--red-pale); border: 1px solid var(--red-lt); border-left: 4px solid var(--red); }
+  .verdict-header { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; flex-wrap: wrap; }
+  .badge {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 2px;
+  }
+  .badge-pass { background: var(--green-lt); color: #1a3a08; }
+  .badge-warn { background: var(--amber-lt); color: #412402; }
+  .badge-fail { background: var(--red-lt); color: #501313; }
+  .confidence {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    color: var(--sepia);
+    letter-spacing: 0.04em;
+  }
+  .verdict-text { font-size: 14.5px; color: var(--ink-lt); line-height: 1.8; }
+
+  /* ── CONDITION GRADES ── */
+  .overall-grade-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .grade-letter-box {
+    width: 64px;
+    height: 64px;
+    background: var(--green-pale);
+    border: 1px solid var(--green-lt);
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .grade-letter {
+    font-family: 'Cinzel', serif;
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+  }
+  .grade-sub { font-size: 0.8rem; color: var(--green); font-weight: 600; }
+  .grade-desc strong { font-size: 15px; font-weight: 600; color: var(--ink); display: block; margin-bottom: 3px; }
+  .grade-desc span { font-size: 13.5px; color: var(--sepia); }
+
+  .grade-bars { margin-bottom: 1.25rem; }
+  .grade-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 11px;
+  }
+  .grade-name { font-size: 13.5px; color: var(--ink-lt); min-width: 130px; }
+  .grade-track {
+    flex: 1;
+    height: 5px;
+    background: var(--parchment-dk);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .grade-fill { height: 100%; border-radius: 3px; }
+  .fill-high { background: #639922; }
+  .fill-mid { background: #c9922a; }
+  .fill-low { background: #8b2020; }
+  .fill-neutral { background: #aaa; }
+  .grade-score { font-size: 13px; font-weight: 600; min-width: 90px; text-align: right; color: var(--ink); font-family: 'Cinzel', serif; }
+  .grade-notes {
+    background: var(--white);
+    border: 1px solid var(--parchment-dk);
+    border-radius: 3px;
+    padding: 14px 16px;
+    font-size: 14.5px;
+    color: var(--ink-lt);
+    line-height: 1.8;
+    font-style: italic;
+  }
+
+  /* ── PROVENANCE ── */
+  .prov-box {
+    background: var(--white);
+    border: 1px solid var(--parchment-dk);
+    border-radius: 3px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .prov-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .prov-text { font-size: 14.5px; color: var(--ink-lt); line-height: 1.75; }
+
+  /* ── COMPARABLE SALES ── */
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .comp-table th {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sepia);
+    text-align: left;
+    padding: 6px 0 10px;
+    border-bottom: 1px solid var(--sepia-lt);
+  }
+  .comp-table td {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--parchment-dk);
+    color: var(--ink-lt);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .comp-table td:first-child { color: var(--ink); }
+  .comp-table td.price { font-family: 'Cinzel', serif; font-weight: 700; color: var(--ink); }
+  .pill-above { display: inline-block; font-family: 'Cinzel', serif; font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: 700; background: #faece7; color: #993c1d; letter-spacing: 0.04em; }
+  .pill-fair  { display: inline-block; font-family: 'Cinzel', serif; font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: 700; background: var(--green-pale); color: var(--green); letter-spacing: 0.04em; }
+  .pill-below { display: inline-block; font-family: 'Cinzel', serif; font-size: 10px; padding: 2px 8px; border-radius: 2px; font-weight: 700; background: var(--blue-pale); color: #185fa5; letter-spacing: 0.04em; }
+
+  /* ── VALUATION ── */
+  .val-box {
+    background: var(--ink);
+    background-image: linear-gradient(135deg, #1a0e05 0%, #2c1f0e 100%);
+    border: 1px solid var(--gold);
+    border-radius: 3px;
+    padding: 24px 26px;
+    display: flex;
+    align-items: flex-start;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .val-left { flex-shrink: 0; }
+  .val-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .val-range-big {
+    font-family: 'Cinzel', serif;
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--gold-lt);
+    line-height: 1;
+    margin-bottom: 7px;
+  }
+  .val-sub { font-size: 13px; color: rgba(255,255,255,0.5); }
+  .val-right { flex: 1; min-width: 220px; }
+  .val-right h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 9px;
+  }
+  .val-right p { font-size: 14.5px; color: rgba(255,255,255,0.75); line-height: 1.75; margin-bottom: 14px; }
+  .rec-verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--green-pale);
+    border: 1px solid var(--green-lt);
+    border-radius: 2px;
+    padding: 8px 16px;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #1a3a08;
+  }
+
+  /* ── FOOTNOTE ── */
+  .footnote {
+    padding: 1.5rem 0 2.5rem;
+    font-size: 12.5px;
+    color: var(--sepia);
+    line-height: 1.75;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: #1a0e05;
+    border-top: 2px solid var(--gold);
+    padding: 2rem 2.5rem;
+  }
+  .footer-inner {
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .footer-logo {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gold-lt);
+    text-decoration: none;
+  }
+  .footer-right { font-size: 12px; color: rgba(255,255,255,0.35); }
+
+  @media (max-width: 600px) {
+    nav, .container { padding: 0 1.25rem; }
+    .val-box { flex-direction: column; gap: 1.5rem; }
+    .report-header { padding: 2rem 1.25rem 1.5rem; }
+    .rpt-section { padding: 1.5rem 0; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">3scouts</a>
+  <a href="/" class="nav-back">← Back to homepage</a>
+</nav>
+
+<!-- REPORT HEADER -->
+<div class="report-header">
+  <div class="container">
+    <div class="screenshot-badge">◈ &nbsp; Deep Analysis — sample screenshot, updated monthly. Not a live report.</div>
+    <h1>Deep Analysis Report — Antique Map</h1>
+    <p class="report-subtitle">
+      eBay listing #294710038845
+      <span>·</span>
+      Monitored category: Antique maps &amp; cartography
+      <span>·</span>
+      Alert issued: 9 May 2026, 14:17
+    </p>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Item identified</div>
+        <div class="summary-value">John Speed — Westmorland &amp; Cumberland, c.1610</div>
+        <div class="summary-sub">From The Theatre of the Empire of Great Britaine · Original hand colour · Copper engraving</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Asking price</div>
+        <div class="price-big">£249</div>
+        <div class="summary-sub">Buy It Now · Free postage · 7 watchers</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Our verdict</div>
+        <div class="summary-value" style="color: var(--gold-lt);">Strong buy — significantly undervalued</div>
+        <div class="summary-sub">Estimated fair value £420–£480</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- AUTHENTICITY -->
+  <div class="rpt-section">
+    <h2>Authenticity assessment</h2>
+    <div class="verdict verdict-pass">
+      <div class="verdict-header">
+        <span class="badge badge-pass">◈ Authentic — confirmed</span>
+        <span class="confidence">Confidence: 94%</span>
+      </div>
+      <p class="verdict-text">The engraving is consistent with the known Speed copper plates used for the 1610–1676 editions of the Theatre. Characteristic features confirmed: the strapwork cartouche in the lower right with mileage scale, the royal arms panel upper left, and Speed's distinctive town plans inset in the lower margin. The Latin text verso is visible and matches the known text for this county pairing. Paper quality and chain line spacing are consistent with 17th-century laid paper. The hand colour is original — pigment application and palette (ochre, green wash, rose) match documented Speed colourist work of the period. No evidence of a facsimile or later photographic reproduction.</p>
+    </div>
+    <div class="verdict verdict-warn">
+      <div class="verdict-header">
+        <span class="badge badge-warn">⚠ Note on edition</span>
+      </div>
+      <p class="verdict-text">Speed's Theatre ran through multiple editions from 1611 to 1676. The listing does not specify the edition, which affects value — earlier editions (1611–1627) command a premium over later ones (1662–1676). The plate wear visible in the image suggests a mid-period printing (c.1627–1650), which is still excellent. We recommend asking the seller to confirm the verso text date before purchasing. This does not affect the authenticity assessment — all editions are genuine Speed maps.</p>
+    </div>
+  </div>
+
+  <!-- CONDITION -->
+  <div class="rpt-section">
+    <h2>Condition assessment</h2>
+    <div class="overall-grade-row">
+      <div class="grade-letter-box">
+        <span class="grade-letter">A</span>
+        <span class="grade-sub">−</span>
+      </div>
+      <div class="grade-desc">
+        <strong>Excellent — exceptional for a 400-year-old map</strong>
+        <span>Clean centrefold, original colour throughout, no restoration. Rarely seen at this condition level.</span>
+      </div>
+    </div>
+    <div class="grade-bars">
+      <div class="grade-row">
+        <span class="grade-name">Paper</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:90%"></div></div>
+        <span class="grade-score">9.0 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Engraving clarity</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:88%"></div></div>
+        <span class="grade-score">8.8 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Original colour</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:92%"></div></div>
+        <span class="grade-score">9.2 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Margins</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:82%"></div></div>
+        <span class="grade-score">8.2 / 10</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Centrefold</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:85%"></div></div>
+        <span class="grade-score">Clean — no split</span>
+      </div>
+      <div class="grade-row">
+        <span class="grade-name">Restoration</span>
+        <div class="grade-track"><div class="grade-fill fill-high" style="width:100%"></div></div>
+        <span class="grade-score">None detected</span>
+      </div>
+    </div>
+    <div class="grade-notes">
+      The paper is bright with no foxing, browning, or watermarking. Margins are full on three sides with a slightly close trim to the top — standard for this edition and not a deduction. The centrefold is clean and flat, indicating the map has been stored pressed rather than folded in a volume for extended periods. The original hand colour is vivid and unevenly applied in places (consistent with period colourist work rather than later enhancement). No evidence of backing, lining, or infill. A genuinely fine example — condition this clean at this price is unusual.
+    </div>
+  </div>
+
+  <!-- PROVENANCE -->
+  <div class="rpt-section">
+    <h2>Provenance &amp; edition notes</h2>
+    <div class="prov-box">
+      <div class="prov-label">About John Speed maps</div>
+      <p class="prov-text">John Speed (1551–1629) produced the first comprehensive atlas of Great Britain and Ireland, published as <em>The Theatre of the Empire of Great Britaine</em> from 1611. His county maps were the first to include town plans and are among the most collected of all British antique maps. Original Speed maps with original hand colour are consistently sought by collectors and consistently hold value — the combination of historical significance, visual appeal, and relative availability makes them a cornerstone of British map collecting.</p>
+    </div>
+    <div class="prov-box">
+      <div class="prov-label">Why this listing is underpriced</div>
+      <p class="prov-text">The seller has listed this as "antique map — old England county" with minimal description, suggesting the seller may be unfamiliar with the specialist Speed map market. Specialist map dealers routinely list comparable Speed maps at £350–£550. The excellent condition of this example pushes the value toward the upper end of that range.</p>
+    </div>
+  </div>
+
+  <!-- COMPARABLE SALES -->
+  <div class="rpt-section">
+    <h2>Comparable recent sales</h2>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Condition</th>
+          <th>Sold</th>
+          <th>Price</th>
+          <th>vs this listing</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Speed — Westmorland &amp; Cumberland, c.1627, original colour</td>
+          <td>Very good</td>
+          <td>Christie's, Nov 2025</td>
+          <td class="price">£420</td>
+          <td><span class="pill-below">41% below sold</span></td>
+        </tr>
+        <tr>
+          <td>Speed — Cumberland, c.1610, original colour</td>
+          <td>Good</td>
+          <td>eBay, Jan 2026</td>
+          <td class="price">£310</td>
+          <td><span class="pill-below">20% below sold</span></td>
+        </tr>
+        <tr>
+          <td>Speed — Westmorland, c.1650, later colour</td>
+          <td>Very good</td>
+          <td>eBay, Mar 2026</td>
+          <td class="price">£275</td>
+          <td><span class="pill-above">10% above sold</span></td>
+        </tr>
+        <tr>
+          <td>Speed — Westmorland &amp; Cumberland, c.1627, original colour</td>
+          <td>Excellent</td>
+          <td>Bonhams, Feb 2026</td>
+          <td class="price">£480</td>
+          <td><span class="pill-below">48% below sold</span></td>
+        </tr>
+        <tr>
+          <td>Speed county map (similar region), c.1640, original colour</td>
+          <td>Good</td>
+          <td>eBay, Apr 2026</td>
+          <td class="price">£340</td>
+          <td><span class="pill-below">27% below sold</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- VALUATION -->
+  <div class="rpt-section">
+    <h2>Valuation &amp; recommendation</h2>
+    <div class="val-box">
+      <div class="val-left">
+        <div class="val-label">3scouts fair value estimate</div>
+        <div class="val-range-big">£420–£480</div>
+        <div class="val-sub">Listed at £249 — approximately 45% below fair value</div>
+      </div>
+      <div class="val-right">
+        <h3>Our recommendation</h3>
+        <p>This listing represents a genuine undervaluation of a fine Speed map in exceptional condition. The £249 asking price is significantly below comparable examples sold at recent auction. The seller may be unfamiliar with the specialist map market, which may explain the pricing. At this price the listing represents strong value — we would not expect a map in this condition at this price to remain available for long. As always, we recommend satisfying yourself on condition and authenticity before proceeding.</p>
+        <div class="rec-verdict">◈ &nbsp; Strong buy — purchase immediately at listed price</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTNOTE -->
+  <p class="footnote">
+    This report was generated by 3scouts using Anthropic Claude Advanced Vision and eBay completed listing data. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments are based on available photographs only and do not replace physical examination by a qualified specialist. There is no substitute for seeing an item in person before purchasing. 3scouts accepts no liability for purchasing decisions made on the basis of this report. Auction comparables sourced from public records. &nbsp;·&nbsp; In most circumstances you are protected by <strong>eBay's Money Back Guarantee</strong> — if an item is not as described, eBay's Buyer Protection policy generally entitles you to a full refund. &nbsp;·&nbsp; <strong>3scouts.com</strong> &nbsp;·&nbsp; Sample report — updated monthly.
+  </p>
+
+</div><!-- /container -->
+
+<footer>
+  <div class="footer-inner">
+    <a href="/" class="footer-logo">3scouts.com</a>
+    <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; © 2026 3scouts.com &nbsp;·&nbsp; <a href="/privacy-policy.html" style="color:rgba(255,255,255,0.4);">Privacy Policy</a> &nbsp;·&nbsp; <a href="/terms.html" style="color:rgba(255,255,255,0.4);">Terms</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
