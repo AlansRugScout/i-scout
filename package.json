@@ -1,7 +1,7 @@
 {
-  "name": "i-scout",
+  "name": "3scouts",
   "version": "1.0.0",
-  "description": "i-Scout — AI-powered collector intelligence",
+  "description": "3scouts — AI-powered collector intelligence",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,7 +9,9 @@
   "dependencies": {
     "express": "^4.18.2",
     "stripe": "^14.21.0",
-    "resend": "^3.2.0"
+    "resend": "^3.2.0",
+    "pg": "^8.11.3",
+    "@anthropic-ai/sdk": "^0.20.0"
   },
   "engines": {
     "node": ">=18.0.0"
