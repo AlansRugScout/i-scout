@@ -2,12 +2,33 @@ const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const path = require('path');
 const { Resend } = require('resend');
+const {
+  initDatabase,
+  runScouts,
+  upsertSubscriber,
+  deactivateSubscriber,
+  runDeepAnalysis,
+} = require('./scout-engine');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ── EMAIL FUNCTIONS ──────────────────────────────────────────────
+// ── INITIALISE DATABASE ───────────────────────────────────────────
+initDatabase().catch(err => console.error('DB init error:', err.message));
+
+// ── SCHEDULER ────────────────────────────────────────────────────
+// Run scouts every hour
+setInterval(() => {
+  runScouts().catch(err => console.error('Scout run error:', err.message));
+}, 60 * 60 * 1000);
+
+// Also run once on startup after 30 seconds
+setTimeout(() => {
+  runScouts().catch(err => console.error('Scout startup error:', err.message));
+}, 30000);
+
+// ── EMAIL FUNCTIONS ───────────────────────────────────────────────
 
 async function sendOwnerAlert(data) {
   const { name, email, plan, category, description, budget, negative, territories, frequency, images } = data;
@@ -96,7 +117,7 @@ async function sendWelcomeEmail(data) {
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@aka.ie',
     to: email,
-    subject: `Your 3scouts is active — welcome aboard`,
+    subject: `Your 3scouts Scout is active — welcome aboard`,
     html: `
       <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #f5edd6; padding: 2rem; border-top: 4px solid #c9922a;">
         <h2 style="font-family: Georgia, serif; color: #2c1f0e; margin-bottom: 0.25rem;">Your Scout is Active</h2>
@@ -124,7 +145,7 @@ async function sendWelcomeEmail(data) {
           <p style="color: #e8b84b; font-size: 13px; margin: 0; letter-spacing: 0.04em;">3scouts.com &nbsp;·&nbsp; Powered by Anthropic & Claude Advanced Vision</p>
         </div>
         <p style="font-size: 12px; color: #8b6344; margin-top: 1rem; line-height: 1.6;">
-          You are receiving this email because you subscribed to 3scouts at 3scouts.com. 
+          You are receiving this email because you subscribed to 3scouts at 3scouts.com.
           To manage your subscription, contact alan@aka.ie.
         </p>
       </div>
@@ -132,18 +153,13 @@ async function sendWelcomeEmail(data) {
   });
 }
 
-// ── WEBHOOK ──────────────────────────────────────────────────────
+// ── WEBHOOK ───────────────────────────────────────────────────────
 
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
-
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('Webhook signature error:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -158,14 +174,22 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       category:    session.metadata?.category    || 'Not specified',
       description: session.metadata?.description || '',
       budget:      session.metadata?.budget      || '',
-      negative:    session.metadata?.negative    || '',
+      negative_keywords: session.metadata?.negative || '',
       territories: session.metadata?.territories || 'all',
       frequency:   session.metadata?.frequency   || 'immediate',
-      images:      [],
     };
 
     console.log(`New subscriber: ${data.email} — ${data.plan} — ${data.category}`);
 
+    // Save to database
+    try {
+      await upsertSubscriber(data);
+      console.log('Subscriber saved to database');
+    } catch (err) {
+      console.error('Database save error:', err.message);
+    }
+
+    // Send welcome email
     try {
       await sendWelcomeEmail(data);
       console.log('Welcome email sent to', data.email);
@@ -174,17 +198,26 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
     }
   }
 
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    try {
+      const customer = await stripe.customers.retrieve(subscription.customer);
+      await deactivateSubscriber(customer.email);
+      console.log('Subscriber deactivated:', customer.email);
+    } catch (err) {
+      console.error('Deactivation error:', err.message);
+    }
+  }
+
   res.json({ received: true });
 });
 
-// ── MIDDLEWARE ───────────────────────────────────────────────────
-
+// ── MIDDLEWARE ────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── CHECKOUT ─────────────────────────────────────────────────────
-
+// ── CHECKOUT SESSION ──────────────────────────────────────────────
 app.post('/create-checkout-session', async (req, res) => {
   const { plan, category, description, budget, name, email, negative, territories, frequency, images } = req.body;
 
@@ -195,9 +228,7 @@ app.post('/create-checkout-session', async (req, res) => {
   };
 
   const priceId = priceMap[plan];
-  if (!priceId) {
-    return res.status(400).json({ error: 'Invalid plan selected' });
-  }
+  if (!priceId) return res.status(400).json({ error: 'Invalid plan selected' });
 
   const planLabels = {
     trial:     '3scouts Starter — €20/month',
@@ -234,19 +265,11 @@ app.post('/create-checkout-session', async (req, res) => {
       cancel_url:  `${process.env.SITE_URL || 'https://www.3scouts.com'}/#brief`,
     });
 
-    // Send owner alert immediately with images before Stripe redirect
+    // Send owner alert immediately with images
     try {
       await sendOwnerAlert({
-        name:        name || '',
-        email:       email || '',
-        plan:        planLabels[plan],
-        category:    category || '',
-        description: description || '',
-        budget:      budget || '',
-        negative:    negative || '',
-        territories: territories || 'all',
-        frequency:   frequency || 'immediate',
-        images:      images || [],
+        name, email, plan: planLabels[plan], category, description,
+        budget, negative, territories, frequency, images: images || [],
       });
       console.log('Owner alert sent with', (images || []).length, 'image(s)');
     } catch (emailErr) {
@@ -261,11 +284,9 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // ── SESSION DETAILS ───────────────────────────────────────────────
-
 app.get('/session-details', async (req, res) => {
   const { session_id } = req.query;
   if (!session_id) return res.status(400).json({ error: 'No session ID' });
-
   try {
     const session = await stripe.checkout.sessions.retrieve(session_id);
     res.json({
@@ -279,8 +300,64 @@ app.get('/session-details', async (req, res) => {
   }
 });
 
-// ── ROUTES ────────────────────────────────────────────────────────
+// ── DEEP ANALYSIS REQUEST ─────────────────────────────────────────
+app.get('/deep-analysis', async (req, res) => {
+  const { subscriber, item } = req.query;
+  if (!subscriber || !item) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
 
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const result = await client.query('SELECT id FROM subscribers WHERE email = $1 AND active = true', [subscriber]);
+    client.release();
+    await pool.end();
+
+    if (result.rows.length === 0) {
+      return res.redirect('/?error=subscriber-not-found');
+    }
+
+    const subscriberId = result.rows[0].id;
+
+    // Run deep analysis in background
+    runDeepAnalysis(subscriberId, item)
+      .then(() => console.log('Deep analysis completed'))
+      .catch(err => console.error('Deep analysis error:', err.message));
+
+    // Send confirmation page
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Deep Analysis Requested — 3scouts</title>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:wght@400;500&display=swap" rel="stylesheet">
+        <style>
+          body { background: #f5edd6; font-family: 'EB Garamond', serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+          .card { background: #fffdf7; border: 1px solid #b8945a; border-top: 4px solid #c9922a; border-radius: 3px; padding: 2.5rem; max-width: 480px; text-align: center; }
+          h1 { font-family: 'Cinzel', serif; color: #2c1f0e; font-size: 1.4rem; margin-bottom: 0.75rem; }
+          p { color: #5a3e20; font-size: 15px; line-height: 1.75; margin-bottom: 1rem; }
+          a { display: inline-block; background: #c9922a; color: #2c1f0e; font-family: 'Cinzel', serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 11px 24px; border-radius: 3px; text-decoration: none; margin-top: 0.5rem; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Deep Analysis Requested</h1>
+          <p>Your Deep Analysis is underway. Scout Two and Scout Three are examining the listing now — you'll receive the full report by email within a few minutes.</p>
+          <a href="https://www.3scouts.com">Return to 3scouts →</a>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error('Deep analysis request error:', err.message);
+    res.redirect('/');
+  }
+});
+
+// ── ROUTES ────────────────────────────────────────────────────────
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
@@ -294,7 +371,6 @@ app.get('*', (req, res) => {
 });
 
 // ── START ─────────────────────────────────────────────────────────
-
 app.listen(PORT, () => {
   console.log(`3scouts server running on port ${PORT}`);
 });
