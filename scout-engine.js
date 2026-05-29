@@ -116,10 +116,17 @@ async function searchEbay(subscriber, token) {
 }
 
 function buildSearchKeywords(subscriber) {
-  // Use description as primary search terms, fall back to category
-  const base = subscriber.description || subscriber.category;
-  // Take first 100 chars and clean up
-  return base.substring(0, 100).replace(/[^\w\s]/g, ' ').trim();
+  // Use description if provided, otherwise category
+  const source = (subscriber.description && subscriber.description.length > 5)
+    ? subscriber.description
+    : subscriber.category;
+
+  // Clean and trim to 100 chars
+  return source
+    .substring(0, 100)
+    .replace(/[^\w\s'&-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function getEbayMarketplace(territories) {
@@ -161,6 +168,7 @@ async function sendAlertEmail(subscriber, listing) {
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@aka.ie',
     to: subscriber.email,
+    bcc: 'alan@aka.ie',
     subject: `3scouts found a match — ${listing.title?.substring(0, 60)}`,
     html: `
       <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #f5edd6; padding: 0; border-top: 4px solid #c9922a;">
@@ -352,6 +360,7 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@aka.ie',
     to: subscriber.email,
+    bcc: 'alan@aka.ie',
     subject: `3scouts Deep Analysis — ${listing.title?.substring(0, 50)}`,
     html: `
       <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #f5edd6; padding: 0; border-top: 4px solid #c9922a;">
