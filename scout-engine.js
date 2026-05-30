@@ -537,13 +537,16 @@ function shouldAlertNow(subscriber) {
   const freq = subscriber.frequency || 'immediate';
   if (freq === 'immediate') return true;
 
+  // Use Irish time (Europe/Dublin) — handles GMT/IST automatically
   const now = new Date();
-  const hour = now.getHours();
+  const irishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Dublin' }));
+  const hour = irishTime.getHours();
+  const day = irishTime.getDay();
 
   if (freq === 'morning') return hour === 8;
   if (freq === 'evening') return hour === 18;
   if (freq === 'twice') return hour === 8 || hour === 18;
-  if (freq === 'weekly') return now.getDay() === 1 && hour === 8; // Monday 8am
+  if (freq === 'weekly') return day === 1 && hour === 8; // Monday 8am Irish time
 
   return true;
 }
