@@ -1025,9 +1025,9 @@ footer {
       <div class="price-card">
         <div class="price-tier">Starter</div>
         <div class="price-amount">€20</div>
-        <div class="price-period">one month, one category</div>
+        <div class="price-period">one month, one Scout brief</div>
         <ul class="price-features">
-          <li>One Scout category of your choice</li>
+          <li>One Scout brief of your choice</li>
           <li>Unlimited standard alerts</li>
           <li>20 Deep Analyses included</li>
           <li>Top up anytime — €2 per 10</li>
@@ -1040,12 +1040,12 @@ footer {
         <div class="price-amount">€45</div>
         <div class="price-period">per month, up to three categories</div>
         <ul class="price-features">
-          <li>Up to three Scout categories</li>
+          <li>Up to three Scout briefs</li>
           <li>Priority alerts — first to know</li>
           <li>Unlimited standard alerts</li>
           <li>60 Deep Analyses included</li>
           <li>Top up anytime — €2 per 10</li>
-          <li>Monthly category review &amp; tuning</li>
+          <li>Monthly brief review Monthly category review &amp; tuningamp; tuning</li>
         </ul>
         <a href="#brief" class="price-cta">Start scouting</a>
       </div>
@@ -1054,7 +1054,7 @@ footer {
         <div class="price-amount">€90</div>
         <div class="price-period">per month, unlimited categories</div>
         <ul class="price-features">
-          <li>Unlimited Scout categories</li>
+          <li>Unlimited Scout briefs</li>
           <li>Highest priority alerts</li>
           <li>Unlimited standard alerts</li>
           <li>150 Deep Analyses included</li>
@@ -1075,7 +1075,8 @@ footer {
     <h2 class="section-title" style="text-align:center;">Tell us what you're scouting for</h2>
     <div class="form-wrap">
       <h3>Your 3scouts brief</h3>
-      <p>Fill in the form below and we'll be in touch within 24 hours to confirm your Scout is active. For reference images, simply email them to <a href="mailto:alan@aka.ie" style="color:var(--gold);">alan@aka.ie</a> after submitting.</p>
+      <p>Fill in the form below and we'll be in touch within 24 hours to confirm your Scout is active.</p>
+      <p style="font-size:14px; color:var(--sepia); margin-top:-1rem; margin-bottom:1.75rem; font-style:italic;">The more specific your brief, the fewer irrelevant alerts you'll receive. You can refine your brief anytime by emailing <a href="mailto:alan@3scouts.com" style="color:var(--gold);">alan@3scouts.com</a></p>
       <form id="brief-form" onsubmit="handleSubmit(event)">
         <div class="form-row">
           <div class="form-group">
@@ -1088,26 +1089,9 @@ footer {
           </div>
         </div>
         <div class="form-group">
-          <label for="category">Primary collecting category</label>
-          <select id="category" name="category" required>
-            <option value="" disabled selected>Select a category…</option>
-            <option>Trading Cards (Pokémon, MTG, Sports)</option>
-            <option>Toys &amp; Designer Figures (LEGO, Funko Pop)</option>
-            <option>Sports &amp; Entertainment Memorabilia</option>
-            <option>Vintage Video Games</option>
-            <option>Comic Books</option>
-            <option>Coins, Banknotes &amp; Stamps</option>
-            <option>Fine Art &amp; Prints</option>
-            <option>Watches — Antique &amp; Modern</option>
-            <option>Silverware &amp; Antiques</option>
-            <option>Antique Maps &amp; Globes</option>
-            <option>Antique Rugs &amp; Textiles</option>
-            <option>Other — I'll describe below</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="description">Describe what you're scouting for</label>
-          <textarea id="description" name="description" placeholder="Tell us as much as you can — specific makers, periods, styles, condition requirements, and anything else that helps us scout precisely for you." required></textarea>
+          <label for="description">What are you scouting for?</label>
+          <textarea id="description" name="description" placeholder="Be as specific as possible — maker, period, style, condition, size, signatures, markings, anything that helps us find exactly what you're looking for. The more detail you give, the sharper your Scout becomes." required></textarea>
+          <p class="form-hint">Examples: <em>"1960s Irish rugby International programmes, autographed"</em> &nbsp;·&nbsp; <em>"Rolex Submariner pre-2000, original box and papers"</em> &nbsp;·&nbsp; <em>"John Speed county maps, original hand colour, pre-1650"</em></p>
         </div>
         <div class="form-group">
           <label for="negative">Exclude from my alerts <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--sepia);">(optional)</span></label>
@@ -1149,9 +1133,9 @@ footer {
           </div>
         </div>
         <div class="form-group">
-          <label for="images">Reference images <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--sepia);">(optional)</span></label>
+          <label for="images">Reference images <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--gold);">— highly recommended</span></label>
           <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/webp" multiple style="padding:8px 10px; font-size:14px; font-family:'EB Garamond',serif;">
-          <p class="form-hint">Upload up to 3 images of items you're looking for. JPG, PNG or WEBP.</p>
+          <p class="form-hint">A photo is worth a thousand keywords. Upload images of items you're looking for — the more visual your brief, the more precisely your Scout performs. Up to 3 images, JPG, PNG or WEBP.</p>
         </div>
         <button type="submit" class="form-submit">Submit your brief →</button>
       </form>
@@ -1248,7 +1232,7 @@ async function handleSubmit(e) {
     plan:        planMap[planRaw] || 'trial',
     name:        document.getElementById('name').value,
     email:       document.getElementById('email').value,
-    category:    document.getElementById('category').value,
+    category:    'General',
     description: document.getElementById('description').value,
     budget:      document.getElementById('budget').value,
     negative:    document.getElementById('negative').value,
