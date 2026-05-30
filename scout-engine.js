@@ -124,17 +124,20 @@ async function searchEbay(subscriber, token) {
 }
 
 function buildSearchKeywords(subscriber) {
-  // Use description if provided, otherwise category
   const source = (subscriber.description && subscriber.description.length > 5)
     ? subscriber.description
     : subscriber.category;
 
-  // Clean and trim to 100 chars
-  return source
-    .substring(0, 100)
+  // Take first 5 meaningful words only — eBay works better with fewer, precise terms
+  const words = source
     .replace(/[^\w\s'&-]/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .split(' ')
+    .filter(w => w.length > 2) // remove very short words
+    .slice(0, 5);
+
+  return words.join(' ');
 }
 
 function getEbayMarketplace(territories) {
