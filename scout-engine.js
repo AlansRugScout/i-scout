@@ -91,10 +91,17 @@ async function searchEbay(subscriber, token) {
   const marketplace = getEbayMarketplace(subscriber.territories);
   const isWorldwide = !subscriber.territories || subscriber.territories === 'all';
 
-  // For worldwide, search all major marketplaces and combine
-  const marketplaces = isWorldwide
-    ? ['EBAY_GB', 'EBAY_US', 'EBAY_IE', 'EBAY_AU', 'EBAY_DE', 'EBAY_FR', 'EBAY_IT', 'EBAY_ES']
-    : [marketplace];
+  // Parse territory list — could be comma-separated marketplace IDs or 'all'
+  let marketplaces;
+  if (isWorldwide) {
+    marketplaces = ['EBAY_GB', 'EBAY_IE', 'EBAY_US', 'EBAY_AU', 'EBAY_CA', 'EBAY_DE', 'EBAY_FR', 'EBAY_IT', 'EBAY_ES'];
+  } else if (subscriber.territories.includes('EBAY_')) {
+    // New format — comma-separated marketplace IDs
+    marketplaces = subscriber.territories.split(',').map(t => t.trim()).filter(Boolean);
+  } else {
+    // Legacy format — use getEbayMarketplace
+    marketplaces = [getEbayMarketplace(subscriber.territories)];
+  }
 
   const allListings = [];
   const seenIds = new Set();
@@ -168,6 +175,7 @@ function buildSearchKeywords(subscriber) {
 }
 
 function getEbayMarketplace(territories) {
+
   if (!territories || territories === 'all') return 'EBAY_US';
   const lower = territories.toLowerCase();
   if (lower.includes('uk') || lower.includes('britain') || lower.includes('ireland')) return 'EBAY_GB';
