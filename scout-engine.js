@@ -86,9 +86,11 @@ async function getEbayToken() {
 
 async function searchEbay(subscriber, token) {
   const keywords = buildSearchKeywords(subscriber);
+  console.log(`Search keywords for ${subscriber.email}: "${keywords}"`);
+
   const params = new URLSearchParams({
     q: keywords,
-    limit: '20',
+    limit: '50',
     sort: 'newlyListed',
   });
 
@@ -100,18 +102,24 @@ async function searchEbay(subscriber, token) {
     }
   }
 
+  const marketplace = getEbayMarketplace(subscriber.territories);
+  console.log(`eBay marketplace: ${marketplace}`);
+
   const response = await fetch(
     `https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`,
     {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'X-EBAY-C-MARKETPLACE-ID': getEbayMarketplace(subscriber.territories),
+        'X-EBAY-C-MARKETPLACE-ID': marketplace,
         'Content-Type': 'application/json',
       },
     }
   );
 
   const data = await response.json();
+  if (data.errors) {
+    console.error(`eBay search error for ${subscriber.email}:`, JSON.stringify(data.errors));
+  }
   return data.itemSummaries || [];
 }
 
@@ -155,74 +163,71 @@ function isRelevantListing(listing, subscriber) {
 
 // ── ALERT EMAIL ──────────────────────────────────────────────────
 
-async function sendAlertEmail(subscriber, listing) {
-  const price = listing.price?.value
-    ? `${listing.price.currency} ${listing.price.value}`
-    : 'Price not listed';
+async function sendDigestEmail(subscriber, listings) {
+  const count = listings.length;
+  const subject = count === 1
+    ? `3scouts found 1 match — ${listings[0].title?.substring(0, 50)}`
+    : `3scouts found ${count} new matches for you`;
 
-  const imageUrl = listing.image?.imageUrl || null;
-  const listingUrl = listing.itemWebUrl || `https://www.ebay.co.uk/itm/${listing.itemId}`;
-  const deepAnalysisUrl = `${process.env.SITE_URL}/deep-analysis?subscriber=${encodeURIComponent(subscriber.email)}&item=${listing.itemId}`;
+  const listingBlocks = listings.map((listing, index) => {
+    const price = listing.price?.value
+      ? `${listing.price.currency} ${listing.price.value}`
+      : 'Price not listed';
+    const imageUrl = listing.image?.imageUrl;
+    const listingUrl = listing.itemWebUrl || `https://www.ebay.co.uk/itm/${listing.itemId}`;
+    const deepAnalysisUrl = `${process.env.SITE_URL}/deep-analysis?subscriber=${encodeURIComponent(subscriber.email)}&item=${listing.itemId}`;
+
+    return `
+      <div style="background:#ffffff;border:1px solid #e8d9b5;border-radius:3px;margin-bottom:1.25rem;overflow:hidden;">
+        <div style="background:#f5edd6;padding:0.5rem 1.25rem;border-bottom:1px solid #e8d9b5;">
+          <span style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;color:#c9922a;text-transform:uppercase;">Match ${index + 1} of ${count}</span>
+          ${listing.condition ? `<span style="font-family:Georgia,serif;font-size:11px;color:#8b6344;float:right;">${listing.condition}</span>` : ''}
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            ${imageUrl ? `<td style="width:110px;padding:0.75rem;vertical-align:top;"><img src="${imageUrl}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:2px;border:1px solid #e8d9b5;"></td>` : ''}
+            <td style="padding:0.75rem;vertical-align:top;">
+              <p style="font-family:Georgia,serif;font-size:14.5px;font-weight:500;color:#2c1f0e;margin:0 0 0.4rem;line-height:1.4;">${listing.title}</p>
+              <p style="font-family:Georgia,serif;font-size:1.15rem;font-weight:700;color:#8b2020;margin:0 0 0.75rem;">${price}</p>
+              <table style="border-collapse:collapse;">
+                <tr>
+                  <td style="padding-right:8px;"><a href="${listingUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:3px;text-decoration:none;">View on eBay →</a></td>
+                  <td><a href="${deepAnalysisUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:3px;text-decoration:none;">Deep Analysis →</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+  }).join('');
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@aka.ie',
+    reply_to: 'alan@3scouts.com',
     to: subscriber.email,
     bcc: 'alan@aka.ie',
-    subject: `3scouts found a match — ${listing.title?.substring(0, 60)}`,
+    subject,
     html: `
-      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #f5edd6; padding: 0; border-top: 4px solid #c9922a;">
-
-        <div style="background: #2c1f0e; padding: 1rem 1.5rem; border-bottom: 2px solid #c9922a;">
-          <p style="font-family: Georgia, serif; font-size: 11px; letter-spacing: 2px; color: #c9922a; margin: 0 0 4px; text-transform: uppercase;">3scouts · New match found</p>
-          <h2 style="font-family: Georgia, serif; font-size: 1.1rem; font-weight: 500; color: #fffdf7; margin: 0; line-height: 1.4;">${listing.title}</h2>
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Your matches</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;line-height:1.4;">${count === 1 ? 'Your Scout found a match' : `Your Scout found ${count} new matches`}</h2>
+          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">Watching for: ${subscriber.description || subscriber.category}</p>
         </div>
-
-        ${imageUrl ? `
-        <div style="background: #e8d9b5; text-align: center; padding: 1rem;">
-          <img src="${imageUrl}" alt="${listing.title}" style="max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 2px;">
-        </div>` : ''}
-
-        <div style="padding: 1.25rem 1.5rem; background: #ffffff; border-bottom: 1px solid #e8d9b5;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
-            <tr style="border-bottom: 1px solid #e8d9b5;">
-              <td style="padding: 8px 0; color: #8b6344; width: 140px;">Listed price</td>
-              <td style="padding: 8px 0; color: #8b2020; font-family: Georgia, serif; font-size: 1.2rem; font-weight: bold;">${price}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e8d9b5;">
-              <td style="padding: 8px 0; color: #8b6344;">Category</td>
-              <td style="padding: 8px 0; color: #2c1f0e;">${subscriber.category}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #8b6344;">Condition</td>
-              <td style="padding: 8px 0; color: #2c1f0e;">${listing.condition || 'Not specified'}</td>
-            </tr>
-          </table>
-        </div>
-
-        <div style="padding: 1.25rem 1.5rem; background: #f5edd6;">
-          <p style="font-size: 14px; color: #5a3e20; line-height: 1.7; margin: 0 0 1.25rem; font-style: italic;">
-            This listing matches your 3scouts brief. View it on eBay to see full details, photos and seller information. Request a Deep Analysis for a full professional appraisal — authenticity, condition grading, comparable sales and our valuation recommendation.
-          </p>
-          <table style="width: 100%;">
-            <tr>
-              <td style="padding-right: 8px;">
-                <a href="${listingUrl}" style="display: block; text-align: center; background: #2c1f0e; color: #e8b84b; font-family: Georgia, serif; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 11px 16px; border-radius: 3px; text-decoration: none;">View on eBay →</a>
-              </td>
-              <td>
-                <a href="${deepAnalysisUrl}" style="display: block; text-align: center; background: #c9922a; color: #2c1f0e; font-family: Georgia, serif; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 11px 16px; border-radius: 3px; text-decoration: none;">Request Deep Analysis →</a>
-              </td>
-            </tr>
-          </table>
-        </div>
-
-        <div style="background: #e8d9b5; padding: 0.75rem 1.5rem; border-top: 1px solid #b8945a;">
-          <p style="font-size: 12px; color: #8b6344; margin: 0; line-height: 1.6;">
-            Without physically seeing and examining an item, no definitive appraisal can be made. This alert is provided for research purposes only. You are protected by eBay's Money Back Guarantee if an item is not as described.
-            &nbsp;·&nbsp; <a href="${process.env.SITE_URL}" style="color: #c9922a;">3scouts.com</a>
+        <div style="padding:1.25rem 1.25rem 0.5rem;">${listingBlocks}</div>
+        <div style="padding:0.75rem 1.5rem 1rem;border-top:1px solid #e8d9b5;">
+          <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
+            Click <strong style="color:#2c1f0e;">Deep Analysis</strong> on any item for a full professional appraisal.
+            &nbsp;·&nbsp; To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
           </p>
         </div>
-
+        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
+            Without physically seeing an item, no definitive appraisal can be made. This alert is for research purposes only. eBay Money Back Guarantee applies if an item is not as described.
+            &nbsp;·&nbsp; <a href="${process.env.SITE_URL}" style="color:#c9922a;">3scouts.com</a>
+          </p>
+        </div>
       </div>
     `,
   });
@@ -459,6 +464,13 @@ async function runScouts() {
   console.log(`Scout run started: ${new Date().toISOString()}`);
   const client = await pool.connect();
   try {
+    // Clean up seen listings older than 30 days
+    const cleaned = await client.query(
+      'DELETE FROM seen_listings WHERE seen_at < NOW() - INTERVAL \'30 days\''
+    );
+    if (cleaned.rowCount > 0) {
+      console.log(`Cleaned up ${cleaned.rowCount} old seen listings`);
+    }
     const { rows: subscribers } = await client.query(
       'SELECT * FROM subscribers WHERE active = true'
     );
@@ -479,11 +491,11 @@ async function runScouts() {
           continue;
         }
 
-        console.log(`Searching eBay for: ${subscriber.email} — ${subscriber.category}`);
+        console.log(`Searching eBay for: ${subscriber.email} — ${subscriber.description || subscriber.category}`);
         const listings = await searchEbay(subscriber, token);
         console.log(`Found ${listings.length} listings for ${subscriber.email}`);
 
-        let alertsSent = 0;
+        const newMatches = [];
         for (const listing of listings) {
           // Skip if already seen
           const seenResult = await client.query(
@@ -504,24 +516,20 @@ async function runScouts() {
             [subscriber.id, listing.itemId]
           );
 
-          // Send alert
-          await sendAlertEmail(subscriber, listing);
-          alertsSent++;
-          console.log(`Alert sent to ${subscriber.email}: ${listing.title}`);
-
-          // Small delay between emails
-          await new Promise(r => setTimeout(r, 500));
+          newMatches.push(listing);
         }
 
-        // Update last alerted time
-        if (alertsSent > 0) {
+        // Send single digest email if any new matches
+        if (newMatches.length > 0) {
+          await sendDigestEmail(subscriber, newMatches);
           await client.query(
             'UPDATE subscribers SET last_alerted_at = NOW() WHERE id = $1',
             [subscriber.id]
           );
+          console.log(`Digest sent to ${subscriber.email}: ${newMatches.length} match(es)`);
+        } else {
+          console.log(`0 new matches for ${subscriber.email}`);
         }
-
-        console.log(`${alertsSent} alert(s) sent to ${subscriber.email}`);
 
       } catch (err) {
         console.error(`Scout error for ${subscriber.email}:`, err.message);
