@@ -88,39 +88,66 @@ async function searchEbay(subscriber, token) {
   const keywords = buildSearchKeywords(subscriber);
   console.log(`Search keywords for ${subscriber.email}: "${keywords}"`);
 
-  const params = new URLSearchParams({
-    q: keywords,
-    limit: '50',
-    sort: 'newlyListed',
-  });
-
-  // Add price filter if budget specified
-  if (subscriber.budget && subscriber.budget !== 'no limit') {
-    const budgetNum = parseFloat(subscriber.budget.replace(/[^0-9.]/g, ''));
-    if (!isNaN(budgetNum)) {
-      params.append('filter', `price:[0..${budgetNum}],priceCurrency:EUR`);
-    }
-  }
-
   const marketplace = getEbayMarketplace(subscriber.territories);
-  console.log(`eBay marketplace: ${marketplace}`);
+  const isWorldwide = !subscriber.territories || subscriber.territories === 'all';
 
-  const response = await fetch(
-    `https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-EBAY-C-MARKETPLACE-ID': marketplace,
-        'Content-Type': 'application/json',
-      },
+  // For worldwide, search all major marketplaces and combine
+  const marketplaces = isWorldwide
+    ? ['EBAY_GB', 'EBAY_US', 'EBAY_IE', 'EBAY_AU', 'EBAY_DE', 'EBAY_FR', 'EBAY_IT', 'EBAY_ES']
+    : [marketplace];
+
+  const allListings = [];
+  const seenIds = new Set();
+
+  for (const market of marketplaces) {
+    console.log(`eBay marketplace: ${market}`);
+    const params = new URLSearchParams({
+      q: keywords,
+      limit: '25',
+      sort: 'newlyListed',
+    });
+
+    if (subscriber.budget && subscriber.budget !== 'no limit') {
+      const budgetNum = parseFloat(subscriber.budget.replace(/[^0-9.]/g, ''));
+      if (!isNaN(budgetNum)) {
+        params.append('filter', `price:[0..${budgetNum}],priceCurrency:EUR`);
+      }
     }
-  );
 
-  const data = await response.json();
-  if (data.errors) {
-    console.error(`eBay search error for ${subscriber.email}:`, JSON.stringify(data.errors));
+    try {
+      const response = await fetch(
+        `https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-EBAY-C-MARKETPLACE-ID': market,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (data.errors) {
+        console.error(`eBay error on ${market}:`, JSON.stringify(data.errors));
+        continue;
+      }
+
+      const items = data.itemSummaries || [];
+      // Deduplicate across marketplaces
+      for (const item of items) {
+        if (!seenIds.has(item.itemId)) {
+          seenIds.add(item.itemId);
+          allListings.push(item);
+        }
+      }
+      console.log(`${market}: ${items.length} listings`);
+    } catch (err) {
+      console.error(`Search error on ${market}:`, err.message);
+    }
   }
-  return data.itemSummaries || [];
+
+  console.log(`Total listings found for ${subscriber.email}: ${allListings.length}`);
+  return allListings;
 }
 
 function buildSearchKeywords(subscriber) {
