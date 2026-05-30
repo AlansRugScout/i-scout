@@ -1114,11 +1114,37 @@ footer {
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="territories">eBay territories to scan</label>
-            <select id="territories" name="territories">
-              <option value="all" selected>All territories (worldwide)</option>
-              <option value="selected">Selected territories only — please specify in brief above</option>
-            </select>
+            <label>Where should we search?</label>
+            <p class="form-hint" style="margin-bottom:0.75rem;">Tick all markets you're happy to buy from. Consider shipping costs and import duties for overseas markets.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--parchment);border:1px solid var(--sepia-lt);border-radius:3px;padding:14px;">
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_GB" checked style="width:16px;height:16px;accent-color:var(--gold);"> United Kingdom
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_IE" checked style="width:16px;height:16px;accent-color:var(--gold);"> Ireland
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_US" checked style="width:16px;height:16px;accent-color:var(--gold);"> United States
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_AU" style="width:16px;height:16px;accent-color:var(--gold);"> Australia
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_CA" style="width:16px;height:16px;accent-color:var(--gold);"> Canada
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_DE" style="width:16px;height:16px;accent-color:var(--gold);"> Germany
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_FR" style="width:16px;height:16px;accent-color:var(--gold);"> France
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_IT" style="width:16px;height:16px;accent-color:var(--gold);"> Italy
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-family:'EB Garamond',serif;font-size:15px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-lt);cursor:pointer;">
+                <input type="checkbox" name="territories" value="EBAY_ES" style="width:16px;height:16px;accent-color:var(--gold);"> Spain
+              </label>
+            </div>
           </div>
           <div class="form-group">
             <label for="frequency">Alert frequency</label>
@@ -1228,6 +1254,10 @@ async function handleSubmit(e) {
     }
   }
 
+  const territoriesChecked = Array.from(
+    document.querySelectorAll('input[name="territories"]:checked')
+  ).map(cb => cb.value);
+
   const payload = {
     plan:        planMap[planRaw] || 'trial',
     name:        document.getElementById('name').value,
@@ -1236,7 +1266,7 @@ async function handleSubmit(e) {
     description: document.getElementById('description').value,
     budget:      document.getElementById('budget').value,
     negative:    document.getElementById('negative').value,
-    territories: document.getElementById('territories').value,
+    territories: territoriesChecked.length > 0 ? territoriesChecked.join(',') : 'EBAY_GB,EBAY_IE,EBAY_US',
     frequency:   document.getElementById('frequency').value,
     images:      imageDataUrls,
   };
