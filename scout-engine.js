@@ -224,14 +224,14 @@ async function sendDigestEmail(subscriber, listings) {
         </div>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            ${imageUrl ? `<td style="width:110px;padding:0.75rem;vertical-align:top;"><img src="${imageUrl}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:2px;border:1px solid #e8d9b5;"></td>` : ''}
+            ${imageUrl ? `<td style="width:110px;padding:0.75rem;vertical-align:top;"><img src="${imageUrl}" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:2px;border:1px solid #e8d9b5;display:block;"></td>` : ''}
             <td style="padding:0.75rem;vertical-align:top;">
               <p style="font-family:Georgia,serif;font-size:14.5px;font-weight:500;color:#2c1f0e;margin:0 0 0.4rem;line-height:1.4;">${listing.title}</p>
               <p style="font-family:Georgia,serif;font-size:1.15rem;font-weight:700;color:#8b2020;margin:0 0 0.75rem;">${price}</p>
               <table style="border-collapse:collapse;">
                 <tr>
-                  <td style="padding-right:8px;"><a href="${listingUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:3px;text-decoration:none;">View on eBay →</a></td>
-                  <td><a href="${deepAnalysisUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:3px;text-decoration:none;">Deep Analysis →</a></td>
+                  <td style="padding-right:8px;"><a href="${listingUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:3px;text-decoration:none;white-space:nowrap;">View on eBay →</a></td>
+                  <td><a href="${deepAnalysisUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:3px;text-decoration:none;white-space:nowrap;">Deep Analysis →</a></td>
                 </tr>
               </table>
             </td>
