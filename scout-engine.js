@@ -138,12 +138,13 @@ function buildSearchKeywords(subscriber) {
 }
 
 function getEbayMarketplace(territories) {
-  if (!territories || territories === 'all') return 'EBAY_GB';
+  if (!territories || territories === 'all') return 'EBAY_US';
   const lower = territories.toLowerCase();
-  if (lower.includes('us') || lower.includes('america')) return 'EBAY_US';
+  if (lower.includes('uk') || lower.includes('britain') || lower.includes('ireland')) return 'EBAY_GB';
   if (lower.includes('au') || lower.includes('australia')) return 'EBAY_AU';
   if (lower.includes('de') || lower.includes('german')) return 'EBAY_DE';
-  return 'EBAY_GB';
+  if (lower.includes('us') || lower.includes('america')) return 'EBAY_US';
+  return 'EBAY_US';
 }
 
 function isRelevantListing(listing, subscriber) {
