@@ -18,10 +18,23 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 initDatabase().catch(err => console.error('DB init error:', err.message));
 
 // ── SCHEDULER ────────────────────────────────────────────────────
-// Run scouts every hour
-setInterval(() => {
-  runScouts().catch(err => console.error('Scout run error:', err.message));
-}, 60 * 60 * 1000);
+// Run scouts at the top of every hour precisely
+function scheduleTopOfHour() {
+  const now = new Date();
+  const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+
+  console.log(`Next Scout run in ${Math.round(msUntilNextHour / 60000)} minutes`);
+
+  setTimeout(() => {
+    runScouts().catch(err => console.error('Scout run error:', err.message));
+    // Then run every hour exactly
+    setInterval(() => {
+      runScouts().catch(err => console.error('Scout run error:', err.message));
+    }, 60 * 60 * 1000);
+  }, msUntilNextHour);
+}
+
+scheduleTopOfHour();
 
 // Also run once on startup after 30 seconds
 setTimeout(() => {
@@ -124,7 +137,7 @@ async function sendWelcomeEmail(data) {
         <p style="color: #c9922a; font-size: 13px; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1.5rem;">${plan}</p>
         <p style="color: #2c1f0e; font-size: 16px; line-height: 1.75; margin-bottom: 1rem;">Dear ${name},</p>
         <p style="color: #5a3e20; font-size: 15px; line-height: 1.8; margin-bottom: 1rem;">
-          Your 3scouts subscription is confirmed and your Scout is now watching eBay around the clock for <strong style="color: #2c1f0e;">${category}</strong>.
+          Your 3scouts subscription is confirmed and your Scout is now watching eBay around the clock for <strong style="color: #2c1f0e;">${data.description || data.category}</strong>.
         </p>
         <p style="color: #5a3e20; font-size: 15px; line-height: 1.8; margin-bottom: 1.5rem;">
           The moment a genuine find appears, you'll receive an instant alert with the item image, asking price, and our quick valuation estimate. You can then request a full <strong style="color: #2c1f0e;">Deep Analysis</strong> on any find — covering authenticity, condition grading, comparable sales, and a detailed buying recommendation.
@@ -290,10 +303,10 @@ app.get('/session-details', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.retrieve(session_id);
     res.json({
-      name:     session.metadata?.name     || 'Collector',
-      plan:     session.metadata?.plan     || '3scouts',
-      email:    session.customer_details?.email || '',
-      category: session.metadata?.category || '',
+      name:        session.metadata?.name        || 'Collector',
+      plan:        session.metadata?.plan        || '3scouts',
+      email:       session.customer_details?.email || '',
+      category:    session.metadata?.description || session.metadata?.category || '',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
