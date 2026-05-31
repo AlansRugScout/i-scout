@@ -227,8 +227,8 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 });
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── CHECKOUT SESSION ──────────────────────────────────────────────
@@ -375,6 +375,7 @@ app.get('/deep-analysis', async (req, res) => {
 app.post('/request-valuation', async (req, res) => {
   const { name, email, description, images } = req.body;
   if (!email || !description) return res.status(400).json({ error: 'Missing fields' });
+  console.log(`Free valuation request from ${email} with ${(images||[]).length} image(s)`);
 
   try {
     // Send owner alert with full details and images
