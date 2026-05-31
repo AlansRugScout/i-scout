@@ -8,6 +8,7 @@ const {
   upsertSubscriber,
   deactivateSubscriber,
   runDeepAnalysis,
+  runDeepAnalysisFromDescription,
 } = require('./scout-engine');
 
 const app = express();
