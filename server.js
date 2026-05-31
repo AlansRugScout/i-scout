@@ -370,6 +370,105 @@ app.get('/deep-analysis', async (req, res) => {
   }
 });
 
+// ── VALUATION REQUEST (existing subscriber) ───────────────────────
+app.post('/request-valuation', async (req, res) => {
+  const { name, email, description, images } = req.body;
+  if (!email || !description) return res.status(400).json({ error: 'Missing fields' });
+
+  try {
+    // Check if existing subscriber
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const result = await client.query('SELECT * FROM subscribers WHERE email = $1 AND active = true', [email]);
+    client.release();
+    await pool.end();
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Subscriber not found. Please subscribe first.' });
+    }
+
+    const subscriber = result.rows[0];
+
+    // Check allowance
+    if (subscriber.deep_analyses_used >= subscriber.deep_analyses_limit) {
+      return res.status(403).json({ error: 'Deep Analysis allowance reached. Please top up.' });
+    }
+
+    // Send owner alert with images
+    await sendOwnerAlert({
+      name: name || subscriber.name,
+      email,
+      plan: subscriber.plan,
+      category: 'Item Valuation Request',
+      description,
+      budget: '',
+      negative: '',
+      territories: '',
+      frequency: '',
+      images: images || [],
+    });
+
+    // Run deep analysis using description as item context
+    const { runDeepAnalysisFromDescription } = require('./scout-engine');
+    runDeepAnalysisFromDescription(subscriber.id, description, images || [])
+      .catch(err => console.error('Valuation error:', err.message));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Valuation request error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── VALUATION CHECKOUT (new subscriber) ──────────────────────────
+app.post('/create-valuation-session', async (req, res) => {
+  const { plan, name, email, description, images } = req.body;
+
+  // For €1 one-off, use the trial price but create a one-time payment
+  const priceId = plan === 'valuation'
+    ? process.env.STRIPE_PRICE_TRIAL  // We'll use trial for now — Phase 2 add dedicated €1 price
+    : process.env.STRIPE_PRICE_TRIAL;
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      customer_email: email,
+      line_items: [{ price: priceId, quantity: 1 }],
+      allow_promotion_codes: true,
+      automatic_tax: { enabled: false },
+      metadata: {
+        plan:        '3scouts Starter — €20/month',
+        name:        name || '',
+        category:    'Item Valuation Request',
+        description: (description || '').substring(0, 500),
+        valuation:   'true',
+      },
+      success_url: `${process.env.SITE_URL || 'https://www.3scouts.com'}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${process.env.SITE_URL || 'https://www.3scouts.com'}/#value`,
+    });
+
+    // Send owner alert with images immediately
+    try {
+      await sendOwnerAlert({
+        name, email,
+        plan: '3scouts Starter — €20/month',
+        category: 'Item Valuation Request',
+        description, budget: '', negative: '', territories: '', frequency: '',
+        images: images || [],
+      });
+    } catch (emailErr) {
+      console.error('Valuation owner alert failed:', emailErr.message);
+    }
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Valuation session error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── ROUTES ────────────────────────────────────────────────────────
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
