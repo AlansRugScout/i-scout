@@ -672,16 +672,21 @@ async function runDeepAnalysisFromDescription(subscriberId, description, imageDa
     }
 
     // Build image content for Claude from base64 data URLs
+    console.log(`runDeepAnalysis: received ${imageDataUrls.length} image(s) for ${subscriber.email}`);
     const imageContents = [];
     for (const dataUrl of imageDataUrls.slice(0, 5)) {
       const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (matches) {
+        console.log(`  Image: mime=${matches[1]} size=${matches[2].length} chars`);
         imageContents.push({
           type: 'image',
           source: { type: 'base64', media_type: matches[1], data: matches[2] }
         });
+      } else {
+        console.log(`  Image: failed to parse data URL (length=${dataUrl?.length})`);
       }
     }
+    console.log(`runDeepAnalysis: sending ${imageContents.length} image(s) to Claude`);
 
     const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com. The service is based in Ireland and primarily serves European and UK collectors.
 
