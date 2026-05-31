@@ -732,6 +732,15 @@ Be specific, expert and honest. Note that without physically examining the item,
     // Send branded appraisal email
     await sendValuationEmail(subscriber, description, analysisText);
 
+    // Send follow-up subscription nudge after 2 hours if not already a subscriber
+    setTimeout(async () => {
+      try {
+        await sendValuationFollowUp(subscriber.email, subscriber.name);
+      } catch(e) {
+        console.error('Follow-up email error:', e.message);
+      }
+    }, 2 * 60 * 60 * 1000);
+
     console.log(`Valuation completed for ${subscriber.email}`);
   } finally {
     client.release();
@@ -773,6 +782,42 @@ async function sendValuationEmail(subscriber, description, analysisText) {
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
             Without physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only. Always satisfy yourself on authenticity and condition before purchasing or selling.
             &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+async function sendValuationFollowUp(email, name) {
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    subject: 'Did you enjoy your 3scouts appraisal?',
+    html: `
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · A note from us</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Hope you enjoyed your appraisal, ${name}</h2>
+        </div>
+        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">We hope your 3scouts valuation report was useful. If you'd like us to keep working for you — watching eBay around the clock for whatever you collect, alerting you the moment a genuine find appears with a full professional appraisal — we'd love to have you as a subscriber.</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.5rem;">Starting at just <strong>€20 a month</strong>. No contracts, no commitments, cancel anytime.</p>
+          <table style="border-collapse:collapse;">
+            <tr>
+              <td style="padding-right:10px;">
+                <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 22px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my subscription →</a>
+              </td>
+              <td>
+                <a href="${process.env.SITE_URL}/#value" style="display:inline-block;background:transparent;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 22px;border-radius:3px;text-decoration:none;border:1px solid #b8945a;white-space:nowrap;">Another free valuation →</a>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
+            3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · No contracts · Cancel anytime
           </p>
         </div>
       </div>
