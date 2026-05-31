@@ -202,11 +202,54 @@ function isRelevantListing(listing, subscriber) {
 
 // ── ALERT EMAIL ──────────────────────────────────────────────────
 
+// ── QUICK ESTIMATE ───────────────────────────────────────────────
+
+async function getQuickEstimate(listing, subscriber) {
+  try {
+    const price = listing.price?.value
+      ? `${listing.price.currency} ${listing.price.value}`
+      : 'Price not listed';
+
+    const prompt = `You are a collectables expert for 3scouts. Assess this eBay listing briefly.
+
+Item: ${listing.title}
+Listed price: ${price}
+Condition: ${listing.condition || 'Not specified'}
+Subscriber is looking for: ${subscriber.description || subscriber.category}
+
+Respond in exactly this JSON format with no other text:
+{
+  "estimate": "£X–£Y" or "€X–€Y" or "$X–$Y" (realistic value range based on the item),
+  "assessment": "One sentence, max 15 words, plain English assessment of whether this looks worth pursuing"
+}
+
+Be honest and specific. If you cannot assess from the title alone, give a general range based on similar items.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content[0].text.trim();
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch (err) {
+    console.error('Quick estimate error:', err.message);
+    return { estimate: null, assessment: null };
+  }
+}
+
 async function sendDigestEmail(subscriber, listings) {
   const count = listings.length;
   const subject = count === 1
     ? `3scouts found 1 match — ${listings[0].title?.substring(0, 50)}`
     : `3scouts found ${count} new matches for you`;
+
+  // Get quick estimates in parallel
+  const estimates = await Promise.all(
+    listings.map(listing => getQuickEstimate(listing, subscriber))
+  );
 
   const listingBlocks = listings.map((listing, index) => {
     const price = listing.price?.value
@@ -215,6 +258,7 @@ async function sendDigestEmail(subscriber, listings) {
     const imageUrl = listing.image?.imageUrl;
     const listingUrl = listing.itemWebUrl || `https://www.ebay.co.uk/itm/${listing.itemId}`;
     const deepAnalysisUrl = `${process.env.SITE_URL}/deep-analysis?subscriber=${encodeURIComponent(subscriber.email)}&item=${listing.itemId}`;
+    const est = estimates[index] || {};
 
     return `
       <div style="background:#ffffff;border:1px solid #e8d9b5;border-radius:3px;margin-bottom:1.25rem;overflow:hidden;">
@@ -226,8 +270,20 @@ async function sendDigestEmail(subscriber, listings) {
           <tr>
             ${imageUrl ? `<td style="width:110px;padding:0.75rem;vertical-align:top;"><img src="${imageUrl}" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:2px;border:1px solid #e8d9b5;display:block;"></td>` : ''}
             <td style="padding:0.75rem;vertical-align:top;">
-              <p style="font-family:Georgia,serif;font-size:14.5px;font-weight:500;color:#2c1f0e;margin:0 0 0.4rem;line-height:1.4;">${listing.title}</p>
-              <p style="font-family:Georgia,serif;font-size:1.15rem;font-weight:700;color:#8b2020;margin:0 0 0.75rem;">${price}</p>
+              <p style="font-family:Georgia,serif;font-size:14.5px;font-weight:500;color:#2c1f0e;margin:0 0 0.5rem;line-height:1.4;">${listing.title}</p>
+              <table style="width:100%;border-collapse:collapse;margin-bottom:0.6rem;">
+                <tr>
+                  <td style="padding:4px 8px 4px 0;vertical-align:top;width:48%;">
+                    <span style="font-family:Georgia,serif;font-size:10px;letter-spacing:1px;color:#8b6344;text-transform:uppercase;display:block;margin-bottom:2px;">Listed price</span>
+                    <span style="font-family:Georgia,serif;font-size:1.1rem;font-weight:700;color:#8b2020;">${price}</span>
+                  </td>
+                  ${est.estimate ? `<td style="padding:4px 0 4px 8px;vertical-align:top;border-left:2px solid #e8d9b5;padding-left:10px;">
+                    <span style="font-family:Georgia,serif;font-size:10px;letter-spacing:1px;color:#8b6344;text-transform:uppercase;display:block;margin-bottom:2px;">Our estimate</span>
+                    <span style="font-family:Georgia,serif;font-size:1.1rem;font-weight:700;color:#1a4a2e;">${est.estimate}</span>
+                  </td>` : ''}
+                </tr>
+              </table>
+              ${est.assessment ? `<div style="background:#f5edd6;border-left:3px solid #c9922a;padding:6px 10px;margin-bottom:0.75rem;font-family:Georgia,serif;font-size:13px;color:#5a3e20;line-height:1.6;font-style:italic;">"${est.assessment}"</div>` : ''}
               <table style="border-collapse:collapse;">
                 <tr>
                   <td style="padding-right:8px;"><a href="${listingUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:3px;text-decoration:none;white-space:nowrap;">View on eBay →</a></td>
@@ -388,15 +444,18 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
 async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl) {
   const price = `${listing.price?.value} ${listing.price?.currency}`;
 
-  // Convert analysis text to HTML paragraphs
+  // Convert analysis text to rich HTML
   const analysisHtml = analysisText
     .split('\n')
     .filter(line => line.trim())
     .map(line => {
-      if (line.match(/^\d+\.|^[A-Z\s]+—/)) {
-        return `<h4 style="font-family:Georgia,serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9922a;margin:1.25rem 0 0.5rem;">${line}</h4>`;
+      if (line.match(/^\d+\.|^[A-Z\s]+—|^[A-Z\s]+:/)) {
+        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 12px;margin:1.25rem 0 0.5rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4></div>`;
       }
-      return `<p style="font-size:15px;color:#5a3e20;line-height:1.8;margin:0 0 0.75rem;">${line}</p>`;
+      if (line.startsWith('**') || line.startsWith('•') || line.startsWith('-')) {
+        return `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.4rem;padding-left:1rem;border-left:2px solid #e8d9b5;">${line.replace(/^[\*\-•]\s*/, '')}</p>`;
+      }
+      return `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
     })
     .join('');
 
@@ -598,10 +657,134 @@ function shouldAlertNow(subscriber) {
   return true;
 }
 
+// ── DEEP ANALYSIS FROM DESCRIPTION (for Value this Item) ──────────
+
+async function runDeepAnalysisFromDescription(subscriberId, description, imageDataUrls) {
+  const client = await pool.connect();
+  try {
+    const subResult = await client.query('SELECT * FROM subscribers WHERE id = $1', [subscriberId]);
+    const subscriber = subResult.rows[0];
+    if (!subscriber) throw new Error('Subscriber not found');
+
+    if (subscriber.deep_analyses_used >= subscriber.deep_analyses_limit) {
+      await sendDeepAnalysisLimitEmail(subscriber);
+      return;
+    }
+
+    // Build image content for Claude from base64 data URLs
+    const imageContents = [];
+    for (const dataUrl of imageDataUrls.slice(0, 5)) {
+      const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (matches) {
+        imageContents.push({
+          type: 'image',
+          source: { type: 'base64', media_type: matches[1], data: matches[2] }
+        });
+      }
+    }
+
+    const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com.
+
+A subscriber has submitted photos of an item they want appraised and valued.
+
+Their description: ${description}
+
+Please provide a full Deep Analysis covering:
+1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
+2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
+3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
+4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible.
+5. VALUATION — What is your fair value estimate range?
+6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
+7. ANY RED FLAGS — What should the owner verify or be cautious about?
+
+Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided.`;
+
+    const messages = [{
+      role: 'user',
+      content: [
+        ...imageContents,
+        { type: 'text', text: prompt }
+      ]
+    }];
+
+    const claudeResponse = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 2000,
+      messages,
+    });
+
+    const analysisText = claudeResponse.content[0].text;
+
+    // Save to database
+    await client.query(
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, analysis_text, completed_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), analysisText]
+    );
+
+    // Update usage count
+    await client.query(
+      'UPDATE subscribers SET deep_analyses_used = deep_analyses_used + 1 WHERE id = $1',
+      [subscriberId]
+    );
+
+    // Send branded appraisal email
+    await sendValuationEmail(subscriber, description, analysisText);
+
+    console.log(`Valuation completed for ${subscriber.email}`);
+  } finally {
+    client.release();
+  }
+}
+
+async function sendValuationEmail(subscriber, description, analysisText) {
+  const analysisHtml = analysisText
+    .split('\n')
+    .filter(line => line.trim())
+    .map(line => {
+      if (line.match(/^\d+\.|^[A-Z\s]+—|^[A-Z\s]+:/)) {
+        return `<h4 style="font-family:Georgia,serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9922a;margin:1.25rem 0 0.5rem;padding-top:0.75rem;border-top:1px solid #e8d9b5;">${line}</h4>`;
+      }
+      return `<p style="font-size:15px;color:#5a3e20;line-height:1.8;margin:0 0 0.5rem;">${line}</p>`;
+    })
+    .join('');
+
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: subscriber.email,
+    bcc: 'alan@aka.ie',
+    subject: `3scouts Valuation — ${description.substring(0, 50)}`,
+    html: `
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+
+        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Valuation Report</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;line-height:1.4;">${description.substring(0, 80)}</h2>
+          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        </div>
+
+        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
+          ${analysisHtml}
+        </div>
+
+        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
+            Without physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only. Always satisfy yourself on authenticity and condition before purchasing or selling.
+            &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 module.exports = {
   initDatabase,
   runScouts,
   upsertSubscriber,
   deactivateSubscriber,
   runDeepAnalysis,
+  runDeepAnalysisFromDescription,
 };
