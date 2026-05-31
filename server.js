@@ -408,9 +408,11 @@ app.post('/request-valuation', async (req, res) => {
       const pool2 = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
       const client2 = await pool2.connect();
       await client2.query(
-        `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit)
-         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1)
-         ON CONFLICT (email) DO NOTHING`,
+        `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit, deep_analyses_used)
+         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1, 0)
+         ON CONFLICT (email) DO UPDATE SET
+           deep_analyses_used = 0,
+           deep_analyses_limit = GREATEST(subscribers.deep_analyses_limit, 1)`,
         [name || 'Visitor', email, description]
       );
       const newSub = await client2.query('SELECT * FROM subscribers WHERE email = $1', [email]);
