@@ -2,14 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-THQXH8BTCE"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-THQXH8BTCE');
-</script><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3scouts — Find it. Appraise it. Value it.</title>
 <meta name="description" content="3scouts watches eBay around the clock for rare collectables. The moment a genuine find appears, we alert you instantly — with a full professional appraisal and valuation.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1307,17 +1300,19 @@ async function handleValueSubmit(e) {
   btn.disabled = true;
 
   const imageInput = document.getElementById('v-images');
-  const imageFiles = imageInput?.files || [];
+  const imageFiles = Array.from(imageInput?.files || []).slice(0, 5);
   const imageDataUrls = [];
 
   if (imageFiles.length > 0) {
-    for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
-      const reader = new FileReader();
-      await new Promise(resolve => {
-        reader.onload = e => { imageDataUrls.push(e.target.result); resolve(); };
-        reader.readAsDataURL(imageFiles[i]);
-      });
-    }
+    const results = await Promise.all(
+      imageFiles.map(file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Image read failed'));
+        reader.readAsDataURL(file);
+      }))
+    );
+    imageDataUrls.push(...results);
   }
 
   // Send free valuation directly
@@ -1364,16 +1359,18 @@ async function handleSubmit(e) {
   };
 
   const imageInput = document.getElementById('images');
-  const imageFiles = imageInput?.files || [];
+  const imageFiles = Array.from(imageInput?.files || []).slice(0, 3);
   const imageDataUrls = [];
   if (imageFiles.length > 0) {
-    for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
-      const reader = new FileReader();
-      await new Promise(resolve => {
-        reader.onload = e => { imageDataUrls.push(e.target.result); resolve(); };
-        reader.readAsDataURL(imageFiles[i]);
-      });
-    }
+    const results = await Promise.all(
+      imageFiles.map(file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Image read failed'));
+        reader.readAsDataURL(file);
+      }))
+    );
+    imageDataUrls.push(...results);
   }
 
   const territoriesChecked = Array.from(
