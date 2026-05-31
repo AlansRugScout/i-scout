@@ -398,7 +398,7 @@ Item location: ${listing.itemLocation?.country}
 Seller feedback: ${listing.seller?.feedbackScore} (${listing.seller?.feedbackPercentage}%)
 Description: ${(listing.description || '').substring(0, 1000)}
 
-Please be specific, expert and honest. Without physically seeing the item, caveat your assessment appropriately.`;
+Please be specific, expert and honest. Without physically seeing the item, caveat your assessment appropriately. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings.`;
 
     const messages = [
       {
@@ -698,7 +698,7 @@ Please provide a full Deep Analysis covering:
 6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
 7. ANY RED FLAGS — What should the owner verify or be cautious about?
 
-Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided.`;
+Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with clear section headings followed by a colon.`;
 
     const messages = [{
       role: 'user',
@@ -750,33 +750,49 @@ Be specific, expert and honest. Note that without physically examining the item,
 async function sendValuationEmail(subscriber, description, analysisText) {
   const analysisHtml = analysisText
     .split('\n')
-    .filter(line => line.trim())
+    .filter(line => line.trim() && line.trim() !== '---')
     .map(line => {
-      // Numbered section headers like "1. ITEM IDENTIFICATION —"
+      // Strip markdown heading prefixes # ## ###
+      line = line.replace(/^#{1,3}\s+/, '');
+
+      // Section headers — numbered like "1. ITEM IDENTIFICATION"
       if (line.match(/^\d+\.\s+[A-Z]/)) {
-        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;border-radius:0 3px 3px 0;">
-          <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4>
-        </div>`;
+        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4></div>`;
       }
-      // Bold lines or key findings
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return `<p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin:0 0 0.5rem;font-weight:700;">${line.replace(/\*\*/g, '')}</p>`;
+
+      // Sub-headings that end with colon e.g. "The Maker:"
+      if (line.match(/^[A-Z][^.!?]*:$/) || line.match(/^[A-Z][^.!?]*:\s*$/)) {
+        const clean = line.replace(/\*\*/g, '').replace(/:$/, '');
+        return `<p style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:#2c1f0e;margin:1rem 0 0.3rem;">${clean}</p>`;
       }
+
       // Bullet points
-      if (line.match(/^[-•]\s/)) {
-        return `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.35rem;padding-left:1.25rem;position:relative;">
-          <span style="position:absolute;left:0;color:#c9922a;">◆</span>${line.replace(/^[-•]\s/, '')}</p>`;
+      if (line.match(/^[-•*]\s/)) {
+        const clean = line.replace(/^[-•*]\s/, '').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        return `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.35rem;padding-left:1.25rem;border-left:2px solid #e8d9b5;">${clean}</p>`;
       }
+
+      // Convert **bold** inline
+      line = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+      // ALL CAPS lines are sub-headings
+      if (line.match(/^[A-Z\s]{6,}$/) && line.trim().length > 5) {
+        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4></div>`;
+      }
+
       return `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
     })
     .join('');
+
+  const textContent = analysisText;
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
     bcc: 'alan@aka.ie',
-    subject: `3scouts Valuation — ${description.substring(0, 50)}`,
+    subject: `3scouts Valuation Report — ${description.substring(0, 50)}`,
+    text: `3scouts Valuation Report\n\n${description}\n\n${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n${textContent}\n\n---\nWithout physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only.\n\n3scouts.com · alan@3scouts.com`,
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
 
