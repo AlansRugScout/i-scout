@@ -683,7 +683,7 @@ async function runDeepAnalysisFromDescription(subscriberId, description, imageDa
       }
     }
 
-    const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com.
+    const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com. The service is based in Ireland and primarily serves European and UK collectors.
 
 A subscriber has submitted photos of an item they want appraised and valued.
 
@@ -693,8 +693,8 @@ Please provide a full Deep Analysis covering:
 1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
 2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
 3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
-4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible.
-5. VALUATION — What is your fair value estimate range?
+4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible. Use EUR (€) or GBP (£) for valuations.
+5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
 6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
 7. ANY RED FLAGS — What should the owner verify or be cautious about?
 
@@ -752,10 +752,22 @@ async function sendValuationEmail(subscriber, description, analysisText) {
     .split('\n')
     .filter(line => line.trim())
     .map(line => {
-      if (line.match(/^\d+\.|^[A-Z\s]+—|^[A-Z\s]+:/)) {
-        return `<h4 style="font-family:Georgia,serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9922a;margin:1.25rem 0 0.5rem;padding-top:0.75rem;border-top:1px solid #e8d9b5;">${line}</h4>`;
+      // Numbered section headers like "1. ITEM IDENTIFICATION —"
+      if (line.match(/^\d+\.\s+[A-Z]/)) {
+        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;border-radius:0 3px 3px 0;">
+          <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4>
+        </div>`;
       }
-      return `<p style="font-size:15px;color:#5a3e20;line-height:1.8;margin:0 0 0.5rem;">${line}</p>`;
+      // Bold lines or key findings
+      if (line.startsWith('**') && line.endsWith('**')) {
+        return `<p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin:0 0 0.5rem;font-weight:700;">${line.replace(/\*\*/g, '')}</p>`;
+      }
+      // Bullet points
+      if (line.match(/^[-•]\s/)) {
+        return `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.35rem;padding-left:1.25rem;position:relative;">
+          <span style="position:absolute;left:0;color:#c9922a;">◆</span>${line.replace(/^[-•]\s/, '')}</p>`;
+      }
+      return `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
     })
     .join('');
 
