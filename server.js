@@ -370,12 +370,23 @@ app.get('/deep-analysis', async (req, res) => {
   }
 });
 
-// ── VALUATION REQUEST (existing subscriber) ───────────────────────
+// ── FREE VALUATION REQUEST ────────────────────────────────────────
 app.post('/request-valuation', async (req, res) => {
   const { name, email, description, images } = req.body;
   if (!email || !description) return res.status(400).json({ error: 'Missing fields' });
 
   try {
+    // Send owner alert with full details and images
+    await sendOwnerAlert({
+      name: name || 'Free valuation request',
+      email,
+      plan: 'Free Valuation',
+      category: 'Free Valuation Request',
+      description,
+      budget: '', negative: '', territories: '', frequency: '',
+      images: images || [],
+    });
+
     // Check if existing subscriber
     const { Pool } = require('pg');
     const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
@@ -384,39 +395,37 @@ app.post('/request-valuation', async (req, res) => {
     client.release();
     await pool.end();
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Subscriber not found. Please subscribe first.' });
+    if (result.rows.length > 0) {
+      // Existing subscriber — use their allowance
+      const subscriber = result.rows[0];
+      if (subscriber.deep_analyses_used < subscriber.deep_analyses_limit) {
+        runDeepAnalysisFromDescription(subscriber.id, description, images || [])
+          .catch(err => console.error('Valuation error:', err.message));
+      }
+    } else {
+      // New visitor — create a temporary subscriber record for the free valuation
+      const pool2 = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      const client2 = await pool2.connect();
+      await client2.query(
+        `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit)
+         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1)
+         ON CONFLICT (email) DO NOTHING`,
+        [name || 'Visitor', email, description]
+      );
+      const newSub = await client2.query('SELECT * FROM subscribers WHERE email = $1', [email]);
+      client2.release();
+      await pool2.end();
+
+      if (newSub.rows.length > 0) {
+        runDeepAnalysisFromDescription(newSub.rows[0].id, description, images || [])
+          .catch(err => console.error('Free valuation error:', err.message));
+      }
     }
 
-    const subscriber = result.rows[0];
-
-    // Check allowance
-    if (subscriber.deep_analyses_used >= subscriber.deep_analyses_limit) {
-      return res.status(403).json({ error: 'Deep Analysis allowance reached. Please top up.' });
-    }
-
-    // Send owner alert with images
-    await sendOwnerAlert({
-      name: name || subscriber.name,
-      email,
-      plan: subscriber.plan,
-      category: 'Item Valuation Request',
-      description,
-      budget: '',
-      negative: '',
-      territories: '',
-      frequency: '',
-      images: images || [],
-    });
-
-    // Run deep analysis using description as item context
-    const { runDeepAnalysisFromDescription } = require('./scout-engine');
-    runDeepAnalysisFromDescription(subscriber.id, description, images || [])
-      .catch(err => console.error('Valuation error:', err.message));
-
+    console.log(`Free valuation requested by ${email}`);
     res.json({ success: true });
   } catch (err) {
-    console.error('Valuation request error:', err.message);
+    console.error('Free valuation error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
