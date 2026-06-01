@@ -826,6 +826,28 @@ footer {
   .alert-prices { gap: 1rem; }
   .sample-btns-row { flex-direction: column; }
 }
+
+/* ── ANIMATED VALUE BUTTON ── */
+#value-btn {
+  position: relative;
+  min-width: 160px;
+  text-align: center;
+}
+#value-btn .btn-text-a,
+#value-btn .btn-text-b {
+  transition: opacity 0.35s ease;
+}
+@keyframes btnPulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(201,146,42,0.4); }
+  50%  { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(201,146,42,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(201,146,42,0); }
+}
+#value-btn.flash-free {
+  background: var(--gold) !important;
+  color: var(--ink) !important;
+  border-color: var(--gold) !important;
+  animation: btnPulse 0.6s ease;
+}
 </style>
 </head>
 <body>
@@ -870,7 +892,10 @@ footer {
     </div>
     <div class="hero-ctas">
       <a href="#brief" class="btn-gold">Start scouting →</a>
-      <a href="#value" class="btn-outline">Value an item →</a>
+      <a href="#value" class="btn-outline" id="value-btn">
+        <span class="btn-text-a" style="display:inline;">Value an Item</span>
+        <span class="btn-text-b" style="display:none;">Free Trial →</span>
+      </a>
     </div>
   </div>
 </div>
@@ -1229,9 +1254,14 @@ footer {
           </div>
         </div>
         <div class="form-group">
-          <label for="images">Reference images <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--gold);">— highly recommended</span></label>
-          <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/webp" multiple style="padding:8px 10px; font-size:14px; font-family:'EB Garamond',serif;">
-          <p class="form-hint">A photo is worth a thousand keywords. Upload images of items you're looking for — the more visual your brief, the more precisely your Scout performs. Up to 3 images, JPG, PNG or WEBP.</p>
+          <label>Reference images <span style="font-family:'EB Garamond',serif; font-weight:400; text-transform:none; letter-spacing:0; color:var(--gold);">— highly recommended</span></label>
+          <div id="brief-photo-picker" style="border:1px solid var(--sepia-lt);border-radius:3px;padding:12px;background:var(--parchment);">
+            <div id="brief-photo-previews" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:0;"></div>
+            <label for="brief-images-trigger" style="display:inline-block;background:var(--ink);color:var(--gold-lt);font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 16px;border-radius:3px;cursor:pointer;">+ Add photo</label>
+            <input type="file" id="brief-images-trigger" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="addBriefPhoto(this)">
+            <span id="brief-photo-count-label" style="font-family:'EB Garamond',serif;font-size:13px;color:var(--sepia);margin-left:10px;">No photos added yet</span>
+          </div>
+          <p class="form-hint">A photo is worth a thousand keywords. Tap "+ Add photo" once for each reference image — up to 3 photos. Works on all devices including iPhone.</p>
         </div>
         <button type="submit" class="form-submit">Submit your brief →</button>
       </form>
@@ -1266,7 +1296,7 @@ footer {
       <a href="#pricing">Pricing</a>
       <a href="privacy-policy.html">Privacy Policy</a>
       <a href="terms.html">Terms &amp; Conditions</a>
-      <a href="mailto:alan@aka.ie">Contact</a>
+      <a href="mailto:alan@3scouts.com">Contact</a>
     </div>
     <p class="footer-copy">© 2026 3scouts.com · Cancel anytime · No long-term commitment · Republic of Ireland</p>
   </div>
@@ -1299,52 +1329,65 @@ function togglePanel(type) {
 
 // ── PHOTO ACCUMULATOR ──
 const accumulatedPhotos = [];
+const accumulatedBriefPhotos = [];
 
 async function addPhoto(input) {
   const file = input.files[0];
   if (!file) return;
-  if (accumulatedPhotos.length >= 5) {
-    alert('Maximum 5 photos reached.');
-    input.value = '';
-    return;
-  }
-
+  if (accumulatedPhotos.length >= 5) { alert('Maximum 5 photos reached.'); input.value = ''; return; }
   try {
     const dataUrl = await compressImage(file);
     accumulatedPhotos.push(dataUrl);
-
-    // Show thumbnail preview
-    const previews = document.getElementById('photo-previews');
-    const thumb = document.createElement('div');
-    thumb.style.cssText = 'position:relative;width:72px;height:72px;';
-    const img = document.createElement('img');
-    img.src = dataUrl;
-    img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:3px;border:1px solid #b8945a;display:block;';
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.innerHTML = '×';
-    removeBtn.style.cssText = 'position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#8b2020;color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;padding:0;font-weight:700;';
-    const idx = accumulatedPhotos.length - 1;
-    removeBtn.onclick = () => {
-      accumulatedPhotos.splice(idx, 1);
-      thumb.remove();
-      updatePhotoCount();
-    };
-    thumb.appendChild(img);
-    thumb.appendChild(removeBtn);
-    previews.appendChild(thumb);
-
+    addThumb('photo-previews', dataUrl, accumulatedPhotos, 'updatePhotoCount');
     updatePhotoCount();
-  } catch(e) {
-    console.error('Photo add error:', e);
-  }
+  } catch(e) { console.error('Photo add error:', e); }
   input.value = '';
+}
+
+async function addBriefPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (accumulatedBriefPhotos.length >= 3) { alert('Maximum 3 photos reached.'); input.value = ''; return; }
+  try {
+    const dataUrl = await compressImage(file);
+    accumulatedBriefPhotos.push(dataUrl);
+    addThumb('brief-photo-previews', dataUrl, accumulatedBriefPhotos, 'updateBriefPhotoCount');
+    updateBriefPhotoCount();
+  } catch(e) { console.error('Brief photo add error:', e); }
+  input.value = '';
+}
+
+function addThumb(containerId, dataUrl, arr, countFn) {
+  const previews = document.getElementById(containerId);
+  if (!previews) return;
+  const idx = arr.length - 1;
+  const thumb = document.createElement('div');
+  thumb.style.cssText = 'position:relative;width:72px;height:72px;';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:3px;border:1px solid #b8945a;display:block;';
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.innerHTML = '×';
+  removeBtn.style.cssText = 'position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#8b2020;color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;padding:0;font-weight:700;';
+  removeBtn.onclick = () => { arr.splice(idx, 1); thumb.remove(); window[countFn](); };
+  thumb.appendChild(img);
+  thumb.appendChild(removeBtn);
+  previews.appendChild(thumb);
 }
 
 function updatePhotoCount() {
   const label = document.getElementById('photo-count-label');
   if (!label) return;
   const n = accumulatedPhotos.length;
+  label.textContent = n === 0 ? 'No photos added yet' : `${n} photo${n > 1 ? 's' : ''} added`;
+  label.style.color = n > 0 ? '#1a4a2e' : 'var(--sepia)';
+}
+
+function updateBriefPhotoCount() {
+  const label = document.getElementById('brief-photo-count-label');
+  if (!label) return;
+  const n = accumulatedBriefPhotos.length;
   label.textContent = n === 0 ? 'No photos added yet' : `${n} photo${n > 1 ? 's' : ''} added`;
   label.style.color = n > 0 ? '#1a4a2e' : 'var(--sepia)';
 }
@@ -1432,7 +1475,8 @@ async function handleSubmit(e) {
     'Dealer — €90/month':    'dealer',
   };
 
-  const imageDataUrls = await readImages(document.getElementById('images'), 3);
+  const imageDataUrls = accumulatedBriefPhotos.slice(0, 3);
+  console.log(`Submitting brief with ${imageDataUrls.length} photo(s)`);
 
   const territoriesChecked = Array.from(
     document.querySelectorAll('input[name="territories"]:checked')
@@ -1459,6 +1503,7 @@ async function handleSubmit(e) {
     });
     const data = await res.json();
     if (data.url) {
+      accumulatedBriefPhotos.length = 0;
       window.location.href = data.url;
     } else {
       throw new Error(data.error || 'Unknown error');
@@ -1466,7 +1511,7 @@ async function handleSubmit(e) {
   } catch (err) {
     btn.textContent = 'Submit your brief →';
     btn.disabled = false;
-    alert('Something went wrong — please try again or email alan@aka.ie');
+    alert('Something went wrong — please try again or email alan@3scouts.com');
   }
 }
 
@@ -1480,6 +1525,49 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     }
   });
 });
+</script>
+
+<!-- Animated value button -->
+<script>
+(function() {
+  const btn = document.getElementById('value-btn');
+  if (!btn) return;
+  const textA = btn.querySelector('.btn-text-a');
+  const textB = btn.querySelector('.btn-text-b');
+  let showingA = true;
+
+  function toggle() {
+    if (showingA) {
+      // Switch to "Free Trial →" — flash gold
+      textA.style.opacity = '0';
+      setTimeout(() => {
+        textA.style.display = 'none';
+        textB.style.display = 'inline';
+        textB.style.opacity = '0';
+        btn.classList.add('flash-free');
+        setTimeout(() => { textB.style.opacity = '1'; }, 20);
+        setTimeout(() => { btn.classList.remove('flash-free'); }, 650);
+      }, 300);
+      showingA = false;
+    } else {
+      // Switch back to "Value an Item"
+      textB.style.opacity = '0';
+      setTimeout(() => {
+        textB.style.display = 'none';
+        textA.style.display = 'inline';
+        textA.style.opacity = '0';
+        setTimeout(() => { textA.style.opacity = '1'; }, 20);
+      }, 300);
+      showingA = true;
+    }
+  }
+
+  // Start cycling after 2 seconds, every 2.5 seconds
+  setTimeout(() => {
+    toggle();
+    setInterval(toggle, 2500);
+  }, 2000);
+})();
 </script>
 
 </body>
