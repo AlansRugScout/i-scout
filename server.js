@@ -66,7 +66,7 @@ async function sendOwnerAlert(data) {
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@aka.ie',
+    reply_to: 'alan@3scouts.com',
     to: 'alan@aka.ie',
     subject: `New 3scouts subscriber — ${name} — ${plan}`,
     attachments: attachments.length > 0 ? attachments : undefined,
@@ -129,7 +129,7 @@ async function sendWelcomeEmail(data) {
   const { name, email, plan, category } = data;
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@aka.ie',
+    reply_to: 'alan@3scouts.com',
     to: email,
     subject: `Your 3scouts Scout is active — welcome aboard`,
     html: `
@@ -153,14 +153,14 @@ async function sendWelcomeEmail(data) {
           </ol>
         </div>
         <p style="color: #5a3e20; font-size: 15px; line-height: 1.8; margin-bottom: 1.5rem;">
-          Any questions at all, simply reply to this email or contact us at <a href="mailto:alan@aka.ie" style="color: #c9922a;">alan@aka.ie</a>.
+          Any questions at all, simply reply to this email or contact us at <a href="mailto:alan@3scouts.com" style="color: #c9922a;">alan@3scouts.com</a>.
         </p>
         <div style="background: #2c1f0e; padding: 1rem 1.25rem; border-radius: 3px; text-align: center;">
           <p style="color: #e8b84b; font-size: 13px; margin: 0; letter-spacing: 0.04em;">3scouts.com &nbsp;·&nbsp; Powered by Anthropic & Claude Advanced Vision</p>
         </div>
         <p style="font-size: 12px; color: #8b6344; margin-top: 1rem; line-height: 1.6;">
           You are receiving this email because you subscribed to 3scouts at 3scouts.com.
-          To manage your subscription, contact alan@aka.ie.
+          To manage your subscription, contact alan@3scouts.com.
         </p>
       </div>
     `
