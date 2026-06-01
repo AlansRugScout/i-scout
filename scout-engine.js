@@ -461,7 +461,7 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@aka.ie',
+    reply_to: 'alan@3scouts.com',
     to: subscriber.email,
     bcc: 'alan@aka.ie',
     subject: `3scouts Deep Analysis — ${listing.title?.substring(0, 50)}`,
@@ -498,7 +498,7 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
 async function sendDeepAnalysisLimitEmail(subscriber) {
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@aka.ie',
+    reply_to: 'alan@3scouts.com',
     to: subscriber.email,
     subject: '3scouts — Deep Analysis allowance reached',
     html: `
@@ -510,8 +510,8 @@ async function sendDeepAnalysisLimitEmail(subscriber) {
         <p style="font-size: 15px; color: #5a3e20; line-height: 1.8; margin-bottom: 1.5rem;">
           To continue receiving Deep Analysis reports, you can top up your account at €2 per 10 analyses, or upgrade your plan for a higher monthly allowance.
         </p>
-        <a href="mailto:alan@aka.ie?subject=Deep Analysis top-up" style="display: inline-block; background: #c9922a; color: #2c1f0e; font-family: Georgia, serif; font-size: 13px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 12px 24px; border-radius: 3px; text-decoration: none;">Request a top-up →</a>
-        <p style="font-size: 12px; color: #8b6344; margin-top: 1.5rem;">3scouts.com · alan@aka.ie</p>
+        <a href="mailto:alan@3scouts.com?subject=Deep Analysis top-up" style="display: inline-block; background: #c9922a; color: #2c1f0e; font-family: Georgia, serif; font-size: 13px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 12px 24px; border-radius: 3px; text-decoration: none;">Request a top-up →</a>
+        <p style="font-size: 12px; color: #8b6344; margin-top: 1.5rem;">3scouts.com · alan@3scouts.com</p>
       </div>
     `,
   });
