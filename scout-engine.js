@@ -374,6 +374,9 @@ async function sendDigestEmail(subscriber, listings) {
           <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;line-height:1.4;">${count === 1 ? 'Your Scout found a match' : `Your Scout found ${count} new matches`}</h2>
           <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">Watching for: ${subscriber.description || subscriber.category}</p>
         </div>
+        <div style="background:#ffffff;border-left:4px solid #c9922a;padding:0.75rem 1.25rem;margin:0 0 1rem;font-family:Georgia,serif;font-size:14px;color:#5a3e20;line-height:1.7;">
+          See something promising? Click <strong style="color:#2c1f0e;">Deep Analysis</strong> for a full professional appraisal — authenticity, condition, comparable sales and our valuation. Usually back to you within the hour.
+        </div>
         <div style="padding:1.25rem 1.25rem 0.5rem;">${listingBlocks}</div>
         <div style="padding:0.75rem 1.5rem 1rem;border-top:1px solid #e8d9b5;">
           <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
