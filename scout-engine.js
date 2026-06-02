@@ -85,7 +85,7 @@ async function getEbayToken() {
 }
 
 async function searchEbay(subscriber, token) {
-  const keywords = buildSearchKeywords(subscriber);
+  const keywords = await buildSearchKeywords(subscriber);
   console.log(`Search keywords for ${subscriber.email}: "${keywords}"`);
 
   const marketplace = getEbayMarketplace(subscriber.territories);
@@ -157,21 +157,47 @@ async function searchEbay(subscriber, token) {
   return allListings;
 }
 
-function buildSearchKeywords(subscriber) {
-  const source = (subscriber.description && subscriber.description.length > 5)
-    ? subscriber.description
-    : subscriber.category;
+async function buildSearchKeywords(subscriber) {
+  try {
+    const prompt = `You are an eBay search expert. Convert this collector's description into the best possible eBay search keywords.
 
-  // Take first 5 meaningful words only — eBay works better with fewer, precise terms
-  const words = source
-    .replace(/[^\w\s'&-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(w => w.length > 2) // remove very short words
-    .slice(0, 5);
+Collector's description: "${subscriber.description || subscriber.category}"
 
-  return words.join(' ');
+Rules:
+- Return ONLY the search keywords, nothing else
+- Maximum 5 words
+- Use terms that eBay sellers actually use in listing titles
+- Focus on the most specific and searchable terms
+- Omit condition words like "ideally", "prefer", "with box", "papers" — these are not in eBay titles
+- Omit filler words like "or", "and", "but", "would"
+- For watches: use make and model number only
+- For musical instruments: use maker and instrument type only
+- For art: use artist surname and medium only
+- For antiques: use period, type and maker if known
+
+Examples:
+"Squale 1521 or 1545 Blue Dial Dive Watch on Stainless Steel Bracelet with box and papers" → "Squale 1521 1545 blue dial"
+"Bechstein boudoir grand 1890s" → "Bechstein grand piano antique"
+"1960s Irish rugby International programmes autographed" → "Ireland rugby programme signed autograph"
+"porcelain ceramic pig piglet figurine" → "pig figurine ceramic porcelain"
+
+Return ONLY the keywords, no explanation.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 50,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const keywords = response.content[0].text.trim().replace(/['"]/g, '');
+    console.log(`Smart keywords for "${subscriber.description?.substring(0, 40)}": "${keywords}"`);
+    return keywords;
+  } catch (err) {
+    console.error('Keyword extraction error:', err.message);
+    // Fallback to simple extraction
+    const source = subscriber.description || subscriber.category;
+    return source.replace(/[^\w\s'&-]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 2).slice(0, 5).join(' ');
+  }
 }
 
 function getEbayMarketplace(territories) {
@@ -315,6 +341,7 @@ async function sendDigestEmail(subscriber, listings) {
           <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
             Click <strong style="color:#2c1f0e;">Deep Analysis</strong> on any item for a full professional appraisal.
             &nbsp;·&nbsp; To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
+            &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
           </p>
         </div>
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
