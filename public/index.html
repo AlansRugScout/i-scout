@@ -1064,7 +1064,7 @@ footer {
         <div class="price-badge">Most popular</div>
         <div class="price-tier">Collector</div>
         <div class="price-amount">€45</div>
-        <div class="price-period">per month, up to three Scout briefs</div>
+        <div class="price-period">per month · up to three Scout briefs</div>
         <ul class="price-features">
           <li>Up to three Scout briefs</li>
           <li>Unlimited standard alerts</li>
@@ -1077,7 +1077,7 @@ footer {
       <div class="price-card">
         <div class="price-tier">Dealer</div>
         <div class="price-amount">€90</div>
-        <div class="price-period">per month, unlimited Scout briefs</div>
+        <div class="price-period">per month · unlimited Scout briefs</div>
         <ul class="price-features">
           <li>Unlimited Scout briefs</li>
           <li>Unlimited standard alerts</li>
@@ -1088,7 +1088,7 @@ footer {
         <a href="#brief" class="price-cta">Start scouting</a>
       </div>
     </div>
-    <p class="pricing-note">◈ &nbsp; 30-day free trial on all plans · Cancel anytime in one click · No questions asked · No cancellation fees</p>
+    <p class="pricing-note">◈ &nbsp; Starter includes a 30-day free trial · All plans cancel anytime in one click · No questions asked · No cancellation fees</p>
   </div>
 </section>
 
@@ -1263,9 +1263,9 @@ footer {
           </div>
           <p class="form-hint">A photo is worth a thousand keywords. Tap "+ Add photo" once for each reference image — up to 3 photos. Works on all devices including iPhone.</p>
         </div>
-        <div style="background:var(--ink);border-radius:3px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
-          <p style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gold);margin:0 0 0.4rem;">Have a free trial code?</p>
-          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.6;margin:0;">Enter code <strong style="color:var(--gold-lt);">SCOUTFREE</strong> on the next page to start your first month free. You'll see a coupon field at the top of the Stripe checkout page.</p>
+        <div id="trial-notice" style="background:var(--ink);border-radius:3px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+          <p style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gold);margin:0 0 0.4rem;">30-day free trial included</p>
+          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.6;margin:0;">Your first 30 days are completely free. Cancel any time before your trial ends and you won't be charged a penny — one click, no questions asked.</p>
         </div>
         <button type="submit" class="form-submit">Submit your brief →</button>
       </form>
@@ -1528,6 +1528,20 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
+});
+</script>
+
+<!-- Plan selector — show/hide trial notice -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const planSelect = document.getElementById('plan');
+  const trialNotice = document.getElementById('trial-notice');
+  if (!planSelect || !trialNotice) return;
+  function updateTrialNotice() {
+    trialNotice.style.display = planSelect.value === 'Starter — €20/month' ? 'block' : 'none';
+  }
+  planSelect.addEventListener('change', updateTrialNotice);
+  updateTrialNotice();
 });
 </script>
 
