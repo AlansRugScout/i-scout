@@ -290,7 +290,7 @@ app.post('/create-checkout-session', async (req, res) => {
         frequency:   frequency || 'immediate',
       },
       subscription_data: {
-        trial_period_days: 30,
+        ...(plan === 'trial' ? { trial_period_days: 30 } : {}),
         metadata: {
           plan:     planLabels[plan],
           name:     name || '',
