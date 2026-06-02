@@ -114,10 +114,11 @@ async function searchEbay(subscriber, token) {
       sort: 'newlyListed',
     });
 
-    if (subscriber.budget && subscriber.budget !== 'no limit') {
+    if (subscriber.budget && subscriber.budget !== 'no limit' && subscriber.budget !== '') {
       const budgetNum = parseFloat(subscriber.budget.replace(/[^0-9.]/g, ''));
-      if (!isNaN(budgetNum)) {
-        params.append('filter', `price:[0..${budgetNum}],priceCurrency:EUR`);
+      if (!isNaN(budgetNum) && budgetNum > 0) {
+        // Don't lock to EUR — just use as a rough upper price guide
+        params.append('filter', `price:[0..${budgetNum}]`);
       }
     }
 
@@ -262,6 +263,44 @@ Be honest and specific. If you cannot assess from the title alone, give a genera
   } catch (err) {
     console.error('Quick estimate error:', err.message);
     return { estimate: null, assessment: null };
+  }
+}
+
+// ── RELEVANCE RANKING ────────────────────────────────────────────
+
+async function rankListings(listings, subscriber) {
+  try {
+    const listingsSummary = listings.map((l, i) => 
+      `${i}: ${l.title} — ${l.price?.value} ${l.price?.currency || ''} — ${l.condition || ''}`
+    ).join('\n');
+
+    const prompt = `You are a collectables expert. A subscriber is looking for: "${subscriber.description}"
+
+Here are ${listings.length} eBay listings. Return the indices of the 8 most relevant ones, ranked best first.
+
+Listings:
+${listingsSummary}
+
+Reply with ONLY 8 comma-separated numbers (the indices), nothing else. Example: 3,7,1,12,0,5,9,2`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 50,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content[0].text.trim();
+    const indices = text.split(',')
+      .map(n => parseInt(n.trim()))
+      .filter(n => !isNaN(n) && n >= 0 && n < listings.length)
+      .slice(0, 8);
+
+    console.log(`Ranked indices: ${indices.join(',')}`);
+    return indices.map(i => listings[i]);
+  } catch (err) {
+    console.error('Ranking error:', err.message);
+    // Fallback — just return first 8
+    return listings.slice(0, 8);
   }
 }
 
@@ -643,14 +682,21 @@ async function runScouts() {
           newMatches.push(listing);
         }
 
+        // Rank and cap matches before sending digest
+        let digestMatches = newMatches;
+        if (newMatches.length > 8) {
+          console.log(`Ranking ${newMatches.length} matches for ${subscriber.email} — selecting top 8`);
+          digestMatches = await rankListings(newMatches, subscriber);
+        }
+
         // Send single digest email if any new matches
-        if (newMatches.length > 0) {
-          await sendDigestEmail(subscriber, newMatches);
+        if (digestMatches.length > 0) {
+          await sendDigestEmail(subscriber, digestMatches);
           await client.query(
             'UPDATE subscribers SET last_alerted_at = NOW() WHERE id = $1',
             [subscriber.id]
           );
-          console.log(`Digest sent to ${subscriber.email}: ${newMatches.length} match(es)`);
+          console.log(`Digest sent to ${subscriber.email}: ${digestMatches.length} match(es) (from ${newMatches.length} found)`);
         } else {
           console.log(`0 new matches for ${subscriber.email}`);
         }
