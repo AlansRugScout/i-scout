@@ -165,23 +165,22 @@ Collector's description: "${subscriber.description || subscriber.category}"
 
 Rules:
 - Return ONLY the search keywords, nothing else
-- Maximum 5 words
-- Use terms that eBay sellers actually use in listing titles
-- Focus on the most specific and searchable terms
-- Omit condition words like "ideally", "prefer", "with box", "papers" — these are not in eBay titles
-- Omit filler words like "or", "and", "but", "would"
-- For watches: use make and model number only
-- For musical instruments: use maker and instrument type only
-- For art: use artist surname and medium only
-- For antiques: use period, type and maker if known
+- Maximum 4 words
+- Use ONLY the most essential identifying terms — make and model or make and type
+- Do NOT add descriptive words like "antique", "vintage", "rare", "original" unless the collector specifically used them
+- Do NOT add condition words
+- Do NOT add words about accessories like "box", "papers", "bracelet"
+- Keep it as simple as possible — what would a seller put in their listing title?
 
 Examples:
-"Squale 1521 or 1545 Blue Dial Dive Watch on Stainless Steel Bracelet with box and papers" → "Squale 1521 1545 blue dial"
-"Bechstein boudoir grand 1890s" → "Bechstein grand piano antique"
-"1960s Irish rugby International programmes autographed" → "Ireland rugby programme signed autograph"
-"porcelain ceramic pig piglet figurine" → "pig figurine ceramic porcelain"
+"Squale 1521 or 1545 Blue Dial Dive Watch on Stainless Steel Bracelet with box and papers" → "Squale 1521 1545 blue"
+"Bechstein boudoir grand 1890s" → "Bechstein grand piano"
+"1960s Irish rugby International programmes autographed" → "Ireland rugby programme signed"
+"porcelain ceramic pig piglet figurine shelf collectable" → "pig figurine ceramic"
+"Mark O Neill paintings" → "Mark O Neill painting"
+"Persian rug antique tribal wool hand knotted" → "Persian rug antique"
 
-Return ONLY the keywords, no explanation.`;
+Return ONLY the keywords, no explanation, no punctuation.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
