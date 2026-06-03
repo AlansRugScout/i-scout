@@ -508,6 +508,75 @@ app.post('/create-valuation-session', async (req, res) => {
   }
 });
 
+// ── TOP-UP CHECKOUT ───────────────────────────────────────────────
+app.get('/topup', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.redirect('/');
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      customer_email: email,
+      line_items: [{
+        price: process.env.STRIPE_PRICE_TOPUP,
+        quantity: 1,
+      }],
+      metadata: { email, topup: 'true' },
+      success_url: `${process.env.SITE_URL}/topup-success?email=${encodeURIComponent(email)}`,
+      cancel_url: `${process.env.SITE_URL}/`,
+    });
+    res.redirect(session.url);
+  } catch (err) {
+    console.error('Top-up session error:', err.message);
+    res.redirect('/');
+  }
+});
+
+app.get('/topup-success', async (req, res) => {
+  const { email } = req.query;
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Top-up confirmed — 3scouts</title>
+      <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body { background:#f5edd6; font-family:'EB Garamond',serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+        .card { background:#fffdf7; border:1px solid #b8945a; border-top:4px solid #c9922a; border-radius:3px; padding:2.5rem; max-width:480px; text-align:center; }
+        h1 { font-family:'Cinzel',serif; color:#2c1f0e; font-size:1.4rem; margin-bottom:0.75rem; }
+        p { color:#5a3e20; font-size:15px; line-height:1.75; margin-bottom:1rem; }
+        a { display:inline-block; background:#c9922a; color:#2c1f0e; font-family:'Cinzel',serif; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:11px 24px; border-radius:3px; text-decoration:none; margin-top:0.5rem; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Top-up confirmed</h1>
+        <p>10 Deep Analyses have been added to your account. Your Scout is back at full strength.</p>
+        <a href="https://www.3scouts.com">Return to 3scouts →</a>
+      </div>
+    </body>
+    </html>
+  `);
+
+  // Add 10 analyses to subscriber's limit
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    await client.query(
+      'UPDATE subscribers SET deep_analyses_limit = deep_analyses_limit + 10 WHERE email = $1',
+      [email]
+    );
+    client.release();
+    await pool.end();
+    console.log(`Top-up applied for ${email} — +10 analyses`);
+  } catch (err) {
+    console.error('Top-up database error:', err.message);
+  }
+});
+
 // ── ROUTES ────────────────────────────────────────────────────────
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
