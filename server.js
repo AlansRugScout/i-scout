@@ -156,6 +156,9 @@ async function sendWelcomeEmail(data) {
           <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">
             The moment a genuine find appears you'll receive a digest alert with listing image, price and our quick valuation estimate. Click <strong style="color:#2c1f0e;">Deep Analysis</strong> on any find for the full professional appraisal.
           </p>
+          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">
+            Your Deep Analysis allowance works both ways — request an appraisal on any eBay listing your Scout finds, <em>or</em> submit photos of anything you already own or are considering buying. Inherited something and not sure what it's worth? Spotted something in a shop or at auction? That's what your allowance is for.
+          </p>
 
           <div style="background:#f5edd6;border:1px solid #e8d9b5;border-left:4px solid #c9922a;padding:1rem 1.25rem;margin-bottom:1.25rem;border-radius:0 3px 3px 0;">
             <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 0.5rem;">Your free trial</p>
@@ -170,7 +173,8 @@ async function sendWelcomeEmail(data) {
             <ol style="color:#5a3e20;font-size:14px;line-height:1.8;padding-left:1.25rem;margin:0;">
               <li>Your Scout begins monitoring eBay immediately across multiple marketplaces</li>
               <li>Matches arrive as a digest alert with images and our quick estimate</li>
-              <li>Request a Deep Analysis on any find for the full professional appraisal</li>
+              <li>Request a Deep Analysis on any eBay find for the full professional appraisal</li>
+              <li>Or submit photos of anything you own for an appraisal and valuation</li>
               <li>To refine your brief anytime, reply to this email</li>
             </ol>
           </div>
