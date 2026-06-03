@@ -379,10 +379,13 @@ async function sendDigestEmail(subscriber, listings) {
         </div>
         <div style="padding:1.25rem 1.25rem 0.5rem;">${listingBlocks}</div>
         <div style="padding:0.75rem 1.5rem 1rem;border-top:1px solid #e8d9b5;">
-          <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
+          <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0 0 0.5rem;">
             Click <strong style="color:#2c1f0e;">Deep Analysis</strong> on any item for a full professional appraisal.
             &nbsp;·&nbsp; To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
             &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
+          </p>
+          <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
+            📸 <strong style="color:#2c1f0e;"><a href="${process.env.SITE_URL}/#value" style="color:#c9922a;text-decoration:none;">Value any item you own →</a></strong> &nbsp;At an auction or in a shop? Take a photo and get a full appraisal within the hour — uses one Deep Analysis from your allowance.
           </p>
         </div>
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
@@ -564,22 +567,42 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
 }
 
 async function sendDeepAnalysisLimitEmail(subscriber) {
+  const topupUrl = `${process.env.SITE_URL}/topup?email=${encodeURIComponent(subscriber.email)}`;
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
+    bcc: 'alan@aka.ie',
     subject: '3scouts — Deep Analysis allowance reached',
     html: `
-      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #f5edd6; padding: 2rem; border-top: 4px solid #c9922a;">
-        <h2 style="font-family: Georgia, serif; color: #2c1f0e; margin-bottom: 1rem;">Deep Analysis allowance reached</h2>
-        <p style="font-size: 15px; color: #5a3e20; line-height: 1.8; margin-bottom: 1rem;">
-          Dear ${subscriber.name}, you have used all ${subscriber.deep_analyses_limit} Deep Analyses included in your current plan.
-        </p>
-        <p style="font-size: 15px; color: #5a3e20; line-height: 1.8; margin-bottom: 1.5rem;">
-          To continue receiving Deep Analysis reports, you can top up your account at €2 per 10 analyses, or upgrade your plan for a higher monthly allowance.
-        </p>
-        <a href="mailto:alan@3scouts.com?subject=Deep Analysis top-up" style="display: inline-block; background: #c9922a; color: #2c1f0e; font-family: Georgia, serif; font-size: 13px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 12px 24px; border-radius: 3px; text-decoration: none;">Request a top-up →</a>
-        <p style="font-size: 12px; color: #8b6344; margin-top: 1.5rem;">3scouts.com · alan@3scouts.com</p>
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Allowance reached</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your Deep Analysis allowance is used up</h2>
+        </div>
+        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">
+            Dear ${subscriber.name}, you've used all ${subscriber.deep_analyses_limit} Deep Analyses included in your current plan — which means you've been busy! 
+          </p>
+          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">
+            Top up your allowance for just <strong style="color:#2c1f0e;">€2 per 10 analyses</strong> — or upgrade your plan for a higher monthly allowance.
+          </p>
+          <table style="border-collapse:collapse;margin-bottom:1rem;">
+            <tr>
+              <td style="padding-right:10px;">
+                <a href="${topupUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Top up — €2 for 10 analyses →</a>
+              </td>
+              <td>
+                <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="display:inline-block;background:transparent;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 20px;border-radius:3px;text-decoration:none;border:1px solid #b8945a;white-space:nowrap;">Upgrade my plan →</a>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
+            3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
+          </p>
+        </div>
       </div>
     `,
   });
