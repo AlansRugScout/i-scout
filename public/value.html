@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request a Deep Analysis — 3scouts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #c9922a;
+      --gold-lt: #e8b84b;
+      --ink: #2c1f0e;
+      --ink-lt: #5a3e20;
+      --parchment: #f5edd6;
+      --sepia: #8b6344;
+      --sepia-lt: #b8945a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--parchment);
+      font-family: 'EB Garamond', serif;
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    nav {
+      background: var(--ink);
+      border-bottom: 2px solid var(--gold);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-dots { display: flex; align-items: center; gap: 4px; }
+    .nav-dots span { display: block; border-radius: 50%; }
+    .nav-logo-text {
+      font-family: 'Cinzel', serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fffdf7;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .nav-logo-text em {
+      font-style: normal;
+      font-size: 0.72rem;
+      color: var(--gold);
+      letter-spacing: 0.06em;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+    }
+    .page-tag {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 0.5rem;
+      line-height: 1.25;
+    }
+    .page-desc {
+      font-size: 15.5px;
+      color: var(--ink-lt);
+      line-height: 1.8;
+      margin-bottom: 0.75rem;
+    }
+    .allowance-note {
+      background: var(--ink);
+      border-radius: 3px;
+      padding: 0.875rem 1.25rem;
+      margin-bottom: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .allowance-note p {
+      font-size: 14px;
+      color: rgba(255,255,255,0.85);
+      line-height: 1.6;
+    }
+    .allowance-note strong { color: var(--gold-lt); }
+    .form-wrap {
+      background: #fffdf7;
+      border: 1px solid var(--sepia-lt);
+      border-top: 3px solid var(--gold);
+      border-radius: 3px;
+      padding: 1.75rem;
+    }
+    .form-group { margin-bottom: 1.25rem; }
+    label {
+      display: block;
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 0.4rem;
+    }
+    label em {
+      font-style: normal;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--sepia);
+      font-family: 'EB Garamond', serif;
+      font-size: 13px;
+    }
+    input[type="text"],
+    input[type="email"],
+    textarea {
+      width: 100%;
+      background: var(--parchment);
+      border: 1px solid var(--sepia-lt);
+      border-radius: 3px;
+      padding: 10px 12px;
+      font-family: 'EB Garamond', serif;
+      font-size: 15px;
+      color: var(--ink);
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .form-hint {
+      font-size: 13px;
+      color: var(--sepia);
+      line-height: 1.6;
+      margin-top: 0.4rem;
+      font-style: italic;
+    }
+    .photo-picker {
+      border: 1px solid var(--sepia-lt);
+      border-radius: 3px;
+      padding: 12px;
+      background: var(--parchment);
+    }
+    #photo-previews {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .add-photo-btn {
+      display: inline-block;
+      background: var(--ink);
+      color: var(--gold-lt);
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 9px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    #photo-count {
+      font-family: 'EB Garamond', serif;
+      font-size: 13px;
+      color: var(--sepia);
+      margin-left: 10px;
+    }
+    .submit-btn {
+      width: 100%;
+      background: var(--gold);
+      color: var(--ink);
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 14px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #success-msg {
+      display: none;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+    #success-msg h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 1.2rem;
+      color: #1a4a2e;
+      margin-bottom: 0.75rem;
+    }
+    #success-msg p {
+      font-size: 15px;
+      color: var(--sepia);
+      line-height: 1.75;
+    }
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 12px;
+      color: var(--sepia);
+    }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;">
+      <div class="nav-dots">
+        <span style="width:9px;height:9px;background:var(--gold);"></span>
+        <span style="width:9px;height:9px;background:var(--gold-lt);"></span>
+        <span style="width:9px;height:9px;background:var(--gold);opacity:0.5;"></span>
+      </div>
+      <div class="nav-logo-text">3scouts<em>.com</em></div>
+    </a>
+  </nav>
+
+  <div class="container">
+
+    <p class="page-tag">Deep Analysis</p>
+    <h1>Value any item</h1>
+    <p class="page-desc">At an auction, in a shop, or something you already own — take a photo and submit it below. Scout Two and Scout Three will examine the piece and return a full professional appraisal by email, usually within the hour.</p>
+
+    <div class="allowance-note">
+      <div style="font-size:1.5rem;">📸</div>
+      <p>Each submission uses <strong>one Deep Analysis</strong> from your monthly allowance. Identification, maker, period, condition grading, comparable sales and our valuation.</p>
+    </div>
+
+    <div class="form-wrap">
+      <form id="value-form" onsubmit="handleSubmit(event)">
+        <div class="form-group">
+          <label for="name">Your name</label>
+          <input type="text" id="name" placeholder="Full name" required>
+        </div>
+        <div class="form-group">
+          <label for="email">Your email address <em>— must match your subscription</em></label>
+          <input type="email" id="email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label for="description">Describe the item</label>
+          <textarea id="description" placeholder="What is it? Where did you find it? Any maker's marks, hallmarks, signatures, inscriptions or date indicators you can see? The more detail the better." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>Photos <em>— essential, up to 5</em></label>
+          <div class="photo-picker">
+            <div id="photo-previews"></div>
+            <label for="photo-trigger" class="add-photo-btn">+ Add photo</label>
+            <input type="file" id="photo-trigger" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="addPhoto(this)">
+            <span id="photo-count">No photos added yet</span>
+          </div>
+          <p class="form-hint">Front, back, any marks, hallmarks, signatures, damage. Each photo added separately — works perfectly on iPhone.</p>
+        </div>
+        <button type="submit" class="submit-btn" id="submit-btn">Request Deep Analysis →</button>
+      </form>
+
+      <div id="success-msg">
+        <h2>Deep Analysis underway</h2>
+        <p>Scout Two and Scout Three are examining your item now. Your full report will arrive by email, usually within the hour.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <a href="/">3scouts.com</a> · <a href="mailto:alan@3scouts.com">alan@3scouts.com</a> · Without physically examining an item, no definitive appraisal can be made.
+  </footer>
+
+  <script>
+    const photos = [];
+
+    function compressImage(file, maxWidth = 1200, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Read failed'));
+        reader.onload = e => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('Load failed'));
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function addPhoto(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (photos.length >= 5) { alert('Maximum 5 photos.'); input.value = ''; return; }
+      try {
+        const dataUrl = await compressImage(file);
+        photos.push(dataUrl);
+        const idx = photos.length - 1;
+        const previews = document.getElementById('photo-previews');
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'position:relative;width:72px;height:72px;';
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:3px;border:1px solid #b8945a;display:block;';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '×';
+        btn.style.cssText = 'position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#8b2020;color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;padding:0;font-weight:700;';
+        btn.onclick = () => { photos.splice(idx, 1); thumb.remove(); updateCount(); };
+        thumb.appendChild(img); thumb.appendChild(btn);
+        previews.appendChild(thumb);
+        updateCount();
+      } catch(e) { console.error(e); }
+      input.value = '';
+    }
+
+    function updateCount() {
+      const el = document.getElementById('photo-count');
+      const n = photos.length;
+      el.textContent = n === 0 ? 'No photos added yet' : `${n} photo${n > 1 ? 's' : ''} added`;
+      el.style.color = n > 0 ? '#1a4a2e' : '#8b6344';
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.textContent = 'Submitting…';
+      btn.disabled = true;
+
+      const payload = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        description: document.getElementById('description').value,
+        images: photos.slice(0, 5),
+      };
+
+      try {
+        const res = await fetch('/request-valuation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('value-form').style.display = 'none';
+          document.getElementById('success-msg').style.display = 'block';
+          document.getElementById('success-msg').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (data.error === 'already_used') {
+          btn.textContent = 'Request Deep Analysis →';
+          btn.disabled = false;
+          alert('No Deep Analysis allowance remaining. Please top up or upgrade your plan.');
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch(err) {
+        btn.textContent = 'Request Deep Analysis →';
+        btn.disabled = false;
+        alert('Something went wrong — please try again or email alan@3scouts.com');
+      }
+    }
+  </script>
+
+</body>
+</html>
