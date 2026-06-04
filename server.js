@@ -174,7 +174,7 @@ async function sendWelcomeEmail(data) {
               <li>Your Scout begins monitoring eBay immediately across multiple marketplaces</li>
               <li>Matches arrive as a digest alert with images and our quick estimate</li>
               <li>Request a Deep Analysis on any eBay find for the full professional appraisal</li>
-              <li>Or submit photos of anything you own for an appraisal and valuation</li>
+              <li>Or take a photo of anything you own or are considering buying and request a Deep Analysis — identification, maker, condition, comparable sales and valuation, usually within the hour</li>
               <li>To refine your brief anytime, reply to this email</li>
             </ol>
           </div>
@@ -431,15 +431,33 @@ app.post('/request-valuation', async (req, res) => {
           .catch(err => console.error('Valuation error:', err.message));
       }
     } else {
-      // New visitor — create a temporary subscriber record for the free valuation
+      // New visitor — check if they've already had a free valuation
       const pool2 = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
       const client2 = await pool2.connect();
+
+      // Check if this email has already used a free valuation
+      const existingFree = await client2.query(
+        `SELECT id, deep_analyses_used, deep_analyses_limit, plan FROM subscribers WHERE email = $1`,
+        [email]
+      );
+
+      if (existingFree.rows.length > 0) {
+        const existing = existingFree.rows[0];
+        // If they already had a free valuation (plan = Free Valuation and used >= limit)
+        if (existing.plan === 'Free Valuation' && existing.deep_analyses_used >= existing.deep_analyses_limit) {
+          client2.release();
+          await pool2.end();
+          return res.status(403).json({ 
+            error: 'already_used',
+            message: 'You have already used your free valuation. Subscribe to get more analyses.'
+          });
+        }
+      }
+
       await client2.query(
         `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit, deep_analyses_used)
          VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1, 0)
-         ON CONFLICT (email) DO UPDATE SET
-           deep_analyses_used = 0,
-           deep_analyses_limit = GREATEST(subscribers.deep_analyses_limit, 1)`,
+         ON CONFLICT (email) DO NOTHING`,
         [name || 'Visitor', email, description]
       );
       const newSub = await client2.query('SELECT * FROM subscribers WHERE email = $1', [email]);
