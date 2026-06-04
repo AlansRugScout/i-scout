@@ -376,7 +376,7 @@ async function sendDigestEmail(subscriber, listings) {
         </div>
         <div style="background:#ffffff;border-left:4px solid #c9922a;padding:0.75rem 1.25rem;margin:0 0 0.75rem;font-family:Georgia,serif;font-size:14px;color:#5a3e20;line-height:1.7;">
           See something promising? Click <strong style="color:#2c1f0e;">Deep Analysis</strong> for a full professional appraisal — authenticity, condition, comparable sales and our valuation. Usually back to you within the hour.
-          &nbsp;·&nbsp; 📸 <a href="${process.env.SITE_URL}/#value" style="color:#c9922a;text-decoration:none;font-weight:bold;">Value any item you own →</a>
+          &nbsp;·&nbsp; 📸 <a href="${process.env.SITE_URL}/value" style="color:#c9922a;text-decoration:none;font-weight:bold;">Value any item you own →</a>
         </div>
         <div style="padding:1.25rem 1.25rem 0.5rem;">${listingBlocks}</div>
         <div style="padding:0.75rem 1.5rem 1rem;border-top:1px solid #e8d9b5;">
