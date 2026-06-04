@@ -245,11 +245,11 @@ Subscriber is looking for: ${subscriber.description || subscriber.category}
 
 Respond in exactly this JSON format with no other text:
 {
-  "estimate": "£X–£Y" or "€X–€Y" or "$X–$Y" (realistic value range based on the item),
-  "assessment": "One sentence, max 15 words, plain English assessment of whether this looks worth pursuing"
+  "estimate": "£X–£Y" or "€X–€Y" or "$X–$Y" (realistic value range in EUR or GBP),
+  "assessment": "One sentence, max 15 words, plain English — focus on value and condition only, never say not relevant"
 }
 
-Be honest and specific. If you cannot assess from the title alone, give a general range based on similar items.`;
+Be honest and specific. Focus only on whether the price looks fair for what it is.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -276,12 +276,12 @@ async function rankListings(listings, subscriber) {
 
     const prompt = `You are a collectables expert. A subscriber is looking for: "${subscriber.description}"
 
-Here are ${listings.length} eBay listings. Return the indices of the 8 most relevant ones, ranked best first.
+Here are ${listings.length} eBay listings. Return ONLY the indices of relevant listings, up to 10, ranked best first. Do NOT include listings that are clearly irrelevant — omit them entirely.
 
 Listings:
 ${listingsSummary}
 
-Reply with ONLY 8 comma-separated numbers (the indices), nothing else. Example: 3,7,1,12,0,5,9,2`;
+Reply with ONLY comma-separated numbers (the indices of relevant listings only), nothing else. If none are relevant return: none`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -293,14 +293,14 @@ Reply with ONLY 8 comma-separated numbers (the indices), nothing else. Example: 
     const indices = text.split(',')
       .map(n => parseInt(n.trim()))
       .filter(n => !isNaN(n) && n >= 0 && n < listings.length)
-      .slice(0, 8);
+      .slice(0, 10);
 
     console.log(`Ranked indices: ${indices.join(',')}`);
     return indices.map(i => listings[i]);
   } catch (err) {
     console.error('Ranking error:', err.message);
     // Fallback — just return first 8
-    return listings.slice(0, 8);
+    return listings.slice(0, 10);
   }
 }
 
@@ -374,18 +374,16 @@ async function sendDigestEmail(subscriber, listings) {
           <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;line-height:1.4;">${count === 1 ? 'Your Scout found a match' : `Your Scout found ${count} new matches`}</h2>
           <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">Watching for: ${subscriber.description || subscriber.category}</p>
         </div>
-        <div style="background:#ffffff;border-left:4px solid #c9922a;padding:0.75rem 1.25rem;margin:0 0 1rem;font-family:Georgia,serif;font-size:14px;color:#5a3e20;line-height:1.7;">
+        <div style="background:#ffffff;border-left:4px solid #c9922a;padding:0.75rem 1.25rem;margin:0 0 0.75rem;font-family:Georgia,serif;font-size:14px;color:#5a3e20;line-height:1.7;">
           See something promising? Click <strong style="color:#2c1f0e;">Deep Analysis</strong> for a full professional appraisal — authenticity, condition, comparable sales and our valuation. Usually back to you within the hour.
+          &nbsp;·&nbsp; 📸 <a href="${process.env.SITE_URL}/#value" style="color:#c9922a;text-decoration:none;font-weight:bold;">Value any item you own →</a>
         </div>
         <div style="padding:1.25rem 1.25rem 0.5rem;">${listingBlocks}</div>
         <div style="padding:0.75rem 1.5rem 1rem;border-top:1px solid #e8d9b5;">
-          <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0 0 0.5rem;">
-            Click <strong style="color:#2c1f0e;">Deep Analysis</strong> on any item for a full professional appraisal.
-            &nbsp;·&nbsp; To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
-            &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
-          </p>
           <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
-            📸 <strong style="color:#2c1f0e;"><a href="${process.env.SITE_URL}/#value" style="color:#c9922a;text-decoration:none;">Value any item you own →</a></strong> &nbsp;At an auction or in a shop? Take a photo and get a full appraisal within the hour — uses one Deep Analysis from your allowance.
+            To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
+            &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
+            &nbsp;·&nbsp; Remember — Buy It Now prices are often negotiable.
           </p>
         </div>
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
@@ -710,8 +708,8 @@ async function runScouts() {
 
         // Rank and cap matches before sending digest
         let digestMatches = newMatches;
-        if (newMatches.length > 8) {
-          console.log(`Ranking ${newMatches.length} matches for ${subscriber.email} — selecting top 8`);
+        if (newMatches.length > 10) {
+          console.log(`Ranking ${newMatches.length} matches for ${subscriber.email} — selecting top 10`);
           digestMatches = await rankListings(newMatches, subscriber);
         }
 
