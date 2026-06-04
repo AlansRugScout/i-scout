@@ -596,6 +596,10 @@ app.get('/topup-success', async (req, res) => {
 });
 
 // ── ROUTES ────────────────────────────────────────────────────────
+app.get('/value', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'value.html'));
+});
+
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
