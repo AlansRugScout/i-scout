@@ -768,6 +768,195 @@ async function sendValuationFollowUp(email, name) {
   });
 }
 
+// ── SUBSCRIBER MANAGEMENT ─────────────────────────────────────────
+
+async function upsertSubscriber(data) {
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client = await pool.connect();
+  try {
+    const deepLimit = data.plan?.includes('Dealer') ? 150 : data.plan?.includes('Collector') ? 60 : 20;
+    await client.query(
+      `INSERT INTO subscribers (name, email, plan, category, description, budget, negative_keywords, territories, frequency, active, deep_analyses_limit)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10)
+       ON CONFLICT (email) DO UPDATE SET
+         name = EXCLUDED.name,
+         plan = EXCLUDED.plan,
+         category = EXCLUDED.category,
+         description = EXCLUDED.description,
+         budget = EXCLUDED.budget,
+         negative_keywords = EXCLUDED.negative_keywords,
+         territories = EXCLUDED.territories,
+         frequency = EXCLUDED.frequency,
+         active = true,
+         deep_analyses_limit = EXCLUDED.deep_analyses_limit`,
+      [data.name, data.email, data.plan, data.category, data.description,
+       data.budget, data.negative, data.territories, data.frequency, deepLimit]
+    );
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+async function deactivateSubscriber(email) {
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client = await pool.connect();
+  try {
+    await client.query('UPDATE subscribers SET active = false WHERE email = $1', [email]);
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+// ── SCOUT RUN ─────────────────────────────────────────────────────
+
+async function runScouts() {
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client = await pool.connect();
+
+  try {
+    const now = new Date();
+    const irishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Dublin' }));
+    const hour = irishTime.getHours();
+    const dayOfWeek = irishTime.getDay(); // 0=Sun, 1=Mon
+
+    const { rows: subscribers } = await client.query(
+      'SELECT * FROM subscribers WHERE active = true'
+    );
+
+    console.log(`Scout run started — ${subscribers.length} active subscriber(s) — ${irishTime.toLocaleString('en-IE')}`);
+
+    const token = await getEbayToken();
+
+    for (const subscriber of subscribers) {
+      try {
+        // Check alert frequency
+        const freq = subscriber.frequency || 'twice';
+        let shouldAlert = false;
+
+        if (freq === 'immediate') {
+          shouldAlert = true;
+        } else if (freq === 'morning' && hour === 8) {
+          shouldAlert = true;
+        } else if (freq === 'evening' && hour === 18) {
+          shouldAlert = true;
+        } else if (freq === 'twice' && (hour === 8 || hour === 18)) {
+          shouldAlert = true;
+        } else if (freq === 'weekly' && dayOfWeek === 1 && hour === 8) {
+          shouldAlert = true;
+        }
+
+        if (!shouldAlert) {
+          console.log(`Skipping ${subscriber.email} — not alert time yet (freq: ${freq}, hour: ${hour})`);
+          continue;
+        }
+
+        console.log(`Searching eBay for: ${subscriber.email} — ${subscriber.description || subscriber.category}`);
+
+        const listings = await searchEbay(subscriber, token);
+        console.log(`Total listings found for ${subscriber.email}: ${listings.length}`);
+
+        if (!listings.length) {
+          console.log(`Found 0 listings for ${subscriber.email}`);
+          continue;
+        }
+
+        // Check seen listings
+        const { rows: seenRows } = await client.query(
+          'SELECT ebay_item_id FROM seen_listings WHERE subscriber_id = $1',
+          [subscriber.id]
+        );
+        const seenIds = new Set(seenRows.map(r => r.ebay_item_id));
+
+        // Filter to new, relevant listings
+        const newMatches = [];
+        for (const listing of listings) {
+          if (seenIds.has(listing.itemId)) continue;
+          if (!isRelevantListing(listing, subscriber)) {
+            console.log(`Filtered out: ${listing.title}`);
+            continue;
+          }
+
+          // Mark as seen
+          await client.query(
+            'INSERT INTO seen_listings (subscriber_id, ebay_item_id, seen_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
+            [subscriber.id, listing.itemId]
+          );
+
+          newMatches.push(listing);
+        }
+
+        console.log(`Found ${newMatches.length} new matches for ${subscriber.email}`);
+
+        if (!newMatches.length) {
+          console.log(`0 new matches for ${subscriber.email}`);
+          continue;
+        }
+
+        // Get quick estimates in parallel
+        const withEstimates = await Promise.all(
+          newMatches.map(async listing => {
+            const est = await getQuickEstimate(listing, subscriber);
+            return { ...listing, ...est };
+          })
+        );
+
+        // Rank and cap
+        let digestMatches = withEstimates;
+        if (withEstimates.length > 10) {
+          console.log(`Ranking ${withEstimates.length} matches for ${subscriber.email} — selecting top 10`);
+          digestMatches = await rankListings(withEstimates, subscriber);
+        }
+
+        // Send digest
+        if (digestMatches.length > 0) {
+          await sendDigestEmail(subscriber, digestMatches);
+          await client.query(
+            'UPDATE subscribers SET last_alerted_at = NOW() WHERE id = $1',
+            [subscriber.id]
+          );
+          console.log(`Digest sent to ${subscriber.email}: ${digestMatches.length} match(es) (from ${newMatches.length} found)`);
+        }
+
+        // Clean old seen listings (> 30 days)
+        await client.query(
+          'DELETE FROM seen_listings WHERE subscriber_id = $1 AND seen_at < NOW() - INTERVAL \'30 days\'',
+          [subscriber.id]
+        );
+
+      } catch(err) {
+        console.error(`Scout error for ${subscriber.email}:`, err.message);
+      }
+    }
+
+    console.log(`Scout run completed: ${new Date().toISOString()}`);
+
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+// ── SCHEDULER ─────────────────────────────────────────────────────
+
+function scheduleTopOfHour() {
+  const now = new Date();
+  const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+  console.log(`Next Scout run in ${Math.round(msUntilNextHour / 60000)} minutes`);
+  setTimeout(() => {
+    runScouts().catch(err => console.error('Scout run error:', err.message));
+    setInterval(() => {
+      runScouts().catch(err => console.error('Scout run error:', err.message));
+    }, 60 * 60 * 1000);
+  }, msUntilNextHour);
+}
+
+scheduleTopOfHour();
+
 module.exports = {
   initDatabase,
   runScouts,
