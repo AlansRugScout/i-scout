@@ -488,11 +488,12 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     const analysisText = claudeResponse.content[0].text;
 
     // Save to database
-    await client.query(
+    const result = await client.query(
       `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
       [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText]
     );
+    const reportId = result.rows[0].id;
 
     // Update usage count
     await client.query(
@@ -500,8 +501,8 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
       [subscriberId]
     );
 
-    // Send Deep Analysis email
-    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl);
+    // Send Deep Analysis email with report link
+    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId);
 
     console.log(`Deep Analysis completed for ${subscriber.email} — ${listing.title}`);
 
@@ -642,10 +643,9 @@ function buildComparableTable(rows) {
 }
 
 
-async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl) {
+async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId) {
   const price = `${listing.price?.value} ${listing.price?.currency}`;
-  const analysisHtml = parseAnalysisToHtml(analysisText);
-
+  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
   await resend.emails.send({
@@ -653,407 +653,93 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
     bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
-    subject: `3scouts Deep Analysis — ${listing.title?.substring(0, 50)}`,
+    subject: `3scouts Deep Analysis ready — ${listing.title?.substring(0, 50)}`,
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
 
-        <!-- Header -->
         <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
           <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Deep Analysis Report</p>
-          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0 0 6px;line-height:1.4;">${listing.title}</h2>
-          <table style="border-collapse:collapse;width:100%;">
-            <tr>
-              <td style="font-size:13px;color:rgba(255,255,255,0.6);">Listed at <strong style="color:#e8b84b;">${price}</strong></td>
-              <td style="font-size:13px;color:rgba(255,255,255,0.4);text-align:right;">${dateStr}</td>
-            </tr>
-          </table>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0 0 5px;line-height:1.4;">${listing.title}</h2>
+          <p style="font-size:13px;color:rgba(255,255,255,0.45);margin:0;">Listed at <strong style="color:#e8b84b;">${price}</strong> &nbsp;·&nbsp; ${dateStr}</p>
         </div>
 
-        <!-- Listing image -->
-        ${imageUrl ? `
-        <div style="background:#1a0e05;text-align:center;padding:1rem 1.5rem;">
-          <img src="${imageUrl}" alt="${listing.title}" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:3px;">
+        ${imageUrl ? `<div style="background:#1a0e05;text-align:center;padding:1rem 1.5rem;border-bottom:1px solid #3a2a15;">
+          <img src="${imageUrl}" alt="${listing.title}" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:3px;">
         </div>` : ''}
 
-        <!-- Listing meta strip -->
-        <div style="background:#f5edd6;padding:0.6rem 1.5rem;border-bottom:1px solid #e8d9b5;">
-          <table style="border-collapse:collapse;width:100%;font-size:12.5px;color:#8b6344;">
-            <tr>
-              <td><strong style="color:#2c1f0e;">Condition:</strong> ${listing.condition || 'Not specified'}</td>
-              <td><strong style="color:#2c1f0e;">Location:</strong> ${listing.itemLocation?.country || 'Not specified'}</td>
-              <td style="text-align:right;"><a href="${listing.itemWebUrl}" style="color:#c9922a;font-weight:700;text-decoration:none;">View on eBay →</a></td>
-            </tr>
-          </table>
+        <div style="padding:1.75rem 1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;text-align:center;">
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Your full Deep Analysis report is ready — authenticity assessment, condition grading, comparable sales and our valuation.</p>
+          <a href="${reportUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;border-radius:3px;text-decoration:none;">View Full Report →</a>
+          <p style="font-size:12px;color:#8b6344;margin:1rem 0 0;">Or copy this link: <a href="${reportUrl}" style="color:#c9922a;">${reportUrl}</a></p>
         </div>
 
-        <!-- Analysis body -->
-        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-          ${analysisHtml}
-        </div>
-
-        <!-- Subscriber brief reminder -->
         <div style="background:#f5edd6;padding:0.75rem 1.5rem;border-bottom:1px solid #e8d9b5;">
-          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
-            <strong style="color:#2c1f0e;">Your brief:</strong> ${subscriber.description || subscriber.category}
+          <p style="font-size:12.5px;color:#5a3e20;margin:0;line-height:1.6;">
+            <strong>Your brief:</strong> ${subscriber.description || subscriber.category}
+            &nbsp;·&nbsp; <a href="${listing.itemWebUrl}" style="color:#c9922a;">View on eBay →</a>
           </p>
         </div>
 
-        <!-- Footer -->
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
-            Without physically seeing and examining an item, no definitive appraisal can be made. This Deep Analysis is based on available listing photographs and market data only. Always satisfy yourself on authenticity and condition before purchasing. You are protected by eBay's Money Back Guarantee if an item is not as described.
-            &nbsp;·&nbsp; <a href="${process.env.SITE_URL}" style="color:#c9922a;">3scouts.com</a>
+            <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
             &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
           </p>
         </div>
-
       </div>
     `,
   });
 }
 
-async function sendDeepAnalysisLimitEmail(subscriber) {
-  const topupUrl = `${process.env.SITE_URL}/topup?email=${encodeURIComponent(subscriber.email)}`;
-  await resend.emails.send({
-    from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@3scouts.com',
-    to: subscriber.email,
-    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
-    subject: '3scouts — Deep Analysis allowance reached',
-    html: `
-      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
-        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
-          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Allowance reached</p>
-          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your Deep Analysis allowance is used up</h2>
-        </div>
-        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">
-            Dear ${subscriber.name}, you've used all ${subscriber.deep_analyses_limit} Deep Analyses included in your current plan — which means you've been busy! 
-          </p>
-          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">
-            Top up your allowance for just <strong style="color:#2c1f0e;">€2 per 10 analyses</strong> — or upgrade your plan for a higher monthly allowance.
-          </p>
-          <table style="border-collapse:collapse;margin-bottom:1rem;">
-            <tr>
-              <td style="padding-right:10px;">
-                <a href="${topupUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Top up — €2 for 10 analyses →</a>
-              </td>
-              <td>
-                <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="display:inline-block;background:transparent;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 20px;border-radius:3px;text-decoration:none;border:1px solid #b8945a;white-space:nowrap;">Upgrade my plan →</a>
-              </td>
-            </tr>
-          </table>
-        </div>
-        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
-          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
-            3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
-          </p>
-        </div>
-      </div>
-    `,
-  });
-}
 
-// ── SUBSCRIBER MANAGEMENT ─────────────────────────────────────────
-
-async function upsertSubscriber(data) {
-  const client = await pool.connect();
-  try {
-    const deepLimit = data.plan?.includes('Collector') ? 60 : data.plan?.includes('Dealer') ? 150 : 20;
-    await client.query(
-      `INSERT INTO subscribers (name, email, plan, category, description, budget, negative_keywords, territories, frequency, deep_analyses_limit)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT (email) DO UPDATE SET
-         name = EXCLUDED.name,
-         plan = EXCLUDED.plan,
-         category = EXCLUDED.category,
-         description = EXCLUDED.description,
-         budget = EXCLUDED.budget,
-         negative_keywords = EXCLUDED.negative_keywords,
-         territories = EXCLUDED.territories,
-         frequency = EXCLUDED.frequency,
-         deep_analyses_limit = EXCLUDED.deep_analyses_limit,
-         active = true`,
-      [data.name, data.email, data.plan, data.category, data.description,
-       data.budget, data.negative_keywords, data.territories, data.frequency, deepLimit]
-    );
-    console.log(`Subscriber upserted: ${data.email}`);
-  } finally {
-    client.release();
-  }
-}
-
-async function deactivateSubscriber(email) {
-  const client = await pool.connect();
-  try {
-    await client.query('UPDATE subscribers SET active = false WHERE email = $1', [email]);
-    console.log(`Subscriber deactivated: ${email}`);
-  } finally {
-    client.release();
-  }
-}
-
-// ── MAIN SCOUT RUNNER ─────────────────────────────────────────────
-
-async function runScouts() {
-  console.log(`Scout run started: ${new Date().toISOString()}`);
-  const client = await pool.connect();
-  try {
-    // Clean up seen listings older than 30 days
-    const cleaned = await client.query(
-      'DELETE FROM seen_listings WHERE seen_at < NOW() - INTERVAL \'30 days\''
-    );
-    if (cleaned.rowCount > 0) {
-      console.log(`Cleaned up ${cleaned.rowCount} old seen listings`);
-    }
-    const { rows: subscribers } = await client.query(
-      'SELECT * FROM subscribers WHERE active = true'
-    );
-    console.log(`Running scouts for ${subscribers.length} active subscriber(s)`);
-
-    let token;
-    try {
-      token = await getEbayToken();
-    } catch (e) {
-      console.error('eBay token error:', e.message);
-      return;
-    }
-
-    for (const subscriber of subscribers) {
-      try {
-        if (!shouldAlertNow(subscriber)) {
-          console.log(`Skipping ${subscriber.email} — not alert time yet`);
-          continue;
-        }
-
-        console.log(`Searching eBay for: ${subscriber.email} — ${subscriber.description || subscriber.category}`);
-        const listings = await searchEbay(subscriber, token);
-        console.log(`Found ${listings.length} listings for ${subscriber.email}`);
-
-        const newMatches = [];
-        for (const listing of listings) {
-          // Skip if already seen
-          const seenResult = await client.query(
-            'SELECT id FROM seen_listings WHERE subscriber_id = $1 AND ebay_item_id = $2',
-            [subscriber.id, listing.itemId]
-          );
-          if (seenResult.rows.length > 0) continue;
-
-          // Check relevance
-          if (!isRelevantListing(listing, subscriber)) {
-            console.log(`Filtered out: ${listing.title}`);
-            continue;
-          }
-
-          // Mark as seen
-          await client.query(
-            'INSERT INTO seen_listings (subscriber_id, ebay_item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [subscriber.id, listing.itemId]
-          );
-
-          newMatches.push(listing);
-        }
-
-        // Rank and cap matches before sending digest
-        let digestMatches = newMatches;
-        if (newMatches.length > 10) {
-          console.log(`Ranking ${newMatches.length} matches for ${subscriber.email} — selecting top 10`);
-          digestMatches = await rankListings(newMatches, subscriber);
-        }
-
-        // Send single digest email if any new matches
-        if (digestMatches.length > 0) {
-          await sendDigestEmail(subscriber, digestMatches);
-          await client.query(
-            'UPDATE subscribers SET last_alerted_at = NOW() WHERE id = $1',
-            [subscriber.id]
-          );
-          console.log(`Digest sent to ${subscriber.email}: ${digestMatches.length} match(es) (from ${newMatches.length} found)`);
-        } else {
-          console.log(`0 new matches for ${subscriber.email}`);
-        }
-
-      } catch (err) {
-        console.error(`Scout error for ${subscriber.email}:`, err.message);
-      }
-    }
-  } finally {
-    client.release();
-  }
-  console.log(`Scout run completed: ${new Date().toISOString()}`);
-}
-
-function shouldAlertNow(subscriber) {
-  const freq = subscriber.frequency || 'immediate';
-  if (freq === 'immediate') return true;
-
-  // Use Irish time (Europe/Dublin) — handles GMT/IST automatically
-  const now = new Date();
-  const irishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Dublin' }));
-  const hour = irishTime.getHours();
-  const day = irishTime.getDay();
-
-  if (freq === 'morning') return hour === 8;
-  if (freq === 'evening') return hour === 18;
-  if (freq === 'twice') return hour === 8 || hour === 18;
-  if (freq === 'weekly') return day === 1 && hour === 8; // Monday 8am Irish time
-
-  return true;
-}
-
-// ── DEEP ANALYSIS FROM DESCRIPTION (for Value this Item) ──────────
-
-async function runDeepAnalysisFromDescription(subscriberId, description, imageDataUrls) {
-  const client = await pool.connect();
-  try {
-    const subResult = await client.query('SELECT * FROM subscribers WHERE id = $1', [subscriberId]);
-    const subscriber = subResult.rows[0];
-    if (!subscriber) throw new Error('Subscriber not found');
-
-    if (subscriber.deep_analyses_used >= subscriber.deep_analyses_limit) {
-      await sendDeepAnalysisLimitEmail(subscriber);
-      return;
-    }
-
-    // Build image content for Claude from base64 data URLs
-    console.log(`runDeepAnalysis: received ${imageDataUrls.length} image(s) for ${subscriber.email}`);
-    const imageContents = [];
-    for (const dataUrl of imageDataUrls.slice(0, 5)) {
-      const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (matches) {
-        console.log(`  Image: mime=${matches[1]} size=${matches[2].length} chars`);
-        imageContents.push({
-          type: 'image',
-          source: { type: 'base64', media_type: matches[1], data: matches[2] }
-        });
-      } else {
-        console.log(`  Image: failed to parse data URL (length=${dataUrl?.length})`);
-      }
-    }
-    console.log(`runDeepAnalysis: sending ${imageContents.length} image(s) to Claude`);
-
-    const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com. The service is based in Ireland and primarily serves European and UK collectors.
-
-A subscriber has submitted ${imageContents.length} photo${imageContents.length > 1 ? 's' : ''} of a SINGLE item they want appraised and valued. All photos are of the same item — some may show the front, back, details or markings of the same piece. Do not treat them as separate items.
-
-Their description: ${description}
-
-Please provide a full Deep Analysis covering:
-1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
-2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
-3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
-4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible. Use EUR (€) or GBP (£) for valuations.
-5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
-6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
-7. ANY RED FLAGS — What should the owner verify or be cautious about?
-
-Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with clear section headings followed by a colon. Today's date is June 2026. For comparable sales, use the most recent data available and note that prices shown are from your knowledge base.`;
-
-    const messages = [{
-      role: 'user',
-      content: [
-        ...imageContents,
-        { type: 'text', text: prompt }
-      ]
-    }];
-
-    const claudeResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
-      messages,
-    });
-
-    const analysisText = claudeResponse.content[0].text;
-
-    // Save to database
-    await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, analysis_text, completed_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), analysisText]
-    );
-
-    // Update usage count
-    await client.query(
-      'UPDATE subscribers SET deep_analyses_used = deep_analyses_used + 1 WHERE id = $1',
-      [subscriberId]
-    );
-
-    // Send branded appraisal email
-    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls);
-
-    // Send follow-up subscription nudge after 2 hours if not already a subscriber
-    setTimeout(async () => {
-      try {
-        await sendValuationFollowUp(subscriber.email, subscriber.name);
-      } catch(e) {
-        console.error('Follow-up email error:', e.message);
-      }
-    }, 2 * 60 * 60 * 1000);
-
-    console.log(`Valuation completed for ${subscriber.email}`);
-  } finally {
-    client.release();
-  }
-}
-
-async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls) {
-  const analysisHtml = parseAnalysisToHtml(analysisText);
+async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId) {
+  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  // Build submitted photos strip (first 4 photos)
-  const photoStrip = (imageDataUrls || []).slice(0, 4).map(dataUrl =>
-    `<img src="${dataUrl}" style="width:130px;height:100px;object-fit:cover;border-radius:3px;border:1px solid #b8945a;" alt="Submitted photo">`
-  ).join('');
+  const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
     bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
-    subject: `3scouts Valuation Report — ${description.substring(0, 50)}`,
-    text: `3scouts Valuation Report\n\n${description}\n\n${dateStr}\n\n${analysisText}\n\n---\nWithout physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only.\n\n3scouts.com · alan@3scouts.com`,
+    subject: `3scouts Valuation Report ready — ${description.substring(0, 50)}`,
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
 
-        <!-- Header -->
         <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
           <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Valuation Report</p>
           <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0 0 5px;line-height:1.4;">${description.substring(0, 100)}</h2>
           <p style="font-size:13px;color:rgba(255,255,255,0.45);margin:0;">${dateStr}</p>
         </div>
 
-        <!-- Submitted photos -->
-        ${photoStrip ? `
-        <div style="background:#1a0e05;padding:1rem 1.5rem;border-bottom:1px solid #3a2a15;">
-          <p style="font-size:10px;letter-spacing:1.5px;color:#c9922a;text-transform:uppercase;margin:0 0 8px;">Submitted photos</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">${photoStrip}</div>
+        ${firstImage ? `<div style="background:#1a0e05;text-align:center;padding:1rem 1.5rem;border-bottom:1px solid #3a2a15;">
+          <img src="${firstImage}" alt="Submitted item" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:3px;">
         </div>` : ''}
 
-        <!-- Analysis body -->
-        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-          ${analysisHtml}
+        <div style="padding:1.75rem 1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;text-align:center;">
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Your full valuation report is ready — item identification, authenticity assessment, condition grading, comparable sales and our valuation.</p>
+          <a href="${reportUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;border-radius:3px;text-decoration:none;">View Full Report →</a>
+          <p style="font-size:12px;color:#8b6344;margin:1rem 0 0;">Or copy this link: <a href="${reportUrl}" style="color:#c9922a;">${reportUrl}</a></p>
         </div>
 
-        <!-- Subscribe CTA (only for non-subscribers) -->
         ${!subscriber.active ? `
         <div style="background:#2c1f0e;padding:1.25rem 1.5rem;border-bottom:1px solid #c9922a;">
-          <p style="font-family:Georgia,serif;font-size:13px;font-weight:700;color:#c9922a;letter-spacing:1px;text-transform:uppercase;margin:0 0 0.5rem;">Enjoyed your appraisal?</p>
+          <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1px;text-transform:uppercase;margin:0 0 0.5rem;">Enjoyed your appraisal?</p>
           <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. First 30 days free.</p>
           <a href="https://www.3scouts.com/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;border-radius:3px;text-decoration:none;">Start my free trial →</a>
         </div>` : ''}
 
-        <!-- Footer -->
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
-            Without physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only. Always satisfy yourself on authenticity and condition before purchasing or selling.
-            &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
+            <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
+            &nbsp;·&nbsp; alan@3scouts.com
           </p>
         </div>
-
       </div>
     `,
   });
 }
+
 
 async function sendValuationFollowUp(email, name) {
   await resend.emails.send({
