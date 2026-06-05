@@ -953,7 +953,7 @@ footer {
   <div class="container">
     <div class="section-tag">Sample reports</div>
     <h2 class="section-title">See exactly what you receive</h2>
-    <p style="font-size:15.5px; color:var(--ink-lt); margin-bottom:1.5rem; max-width:640px; line-height:1.75;">Every match triggers a standard alert. Request a Deep Analysis on any find for the full professional appraisal — exactly as shown below, which is an actual Deep Analysis report for a collector and client of 3scouts.com.</p>
+    <p style="font-size:15.5px; color:var(--ink-lt); margin-bottom:1.5rem; max-width:640px; line-height:1.75;">Every match triggers a standard alert. Request a Deep Analysis on any find for the full professional appraisal — exactly as shown below, which is an actual alert and subsequent Deep Analysis report for an antique map collector and client of 3scouts.com.</p>
 
     <div class="sample-btns-row">
       <button class="btn-sample" id="btn-alert" onclick="togglePanel('alert')">
@@ -1431,7 +1431,7 @@ function updateBriefPhotoCount() {
 }
 
 // ── IMAGE COMPRESSION ──
-function compressImage(file, maxWidth = 1200, quality = 0.82) {
+function compressImage(file, maxWidth = 800, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Read failed'));
