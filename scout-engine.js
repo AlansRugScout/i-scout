@@ -365,7 +365,7 @@ async function sendDigestEmail(subscriber, listings) {
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
-    bcc: 'alan@aka.ie',
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
     subject,
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
@@ -480,8 +480,8 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     ];
 
     const claudeResponse = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 4000,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
       messages,
     });
 
@@ -510,52 +510,213 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
   }
 }
 
+
+function parseAnalysisToHtml(analysisText) {
+  const lines = analysisText
+    .split('\n')
+    .filter(line => line.trim() && line.trim() !== '---');
+
+  let html = '';
+  let inComparables = false;
+  let comparableRows = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Strip markdown prefixes
+    line = line.replace(/^#{1,3}\s+/, '');
+
+    // Detect COMPARABLE SALES section — render as table
+    if (line.match(/^4\.|comparable.*sales/i)) {
+      inComparables = true;
+      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
+        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line.replace(/\*\*/g,'')}</h4>
+      </div>`;
+      continue;
+    }
+
+    // Detect VALUATION section — render as highlight panel
+    if (line.match(/^5\.|^valuation/i)) {
+      inComparables = false;
+      if (comparableRows.length > 0) {
+        html += buildComparableTable(comparableRows);
+        comparableRows = [];
+      }
+      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
+        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line.replace(/\*\*/g,'')}</h4>
+      </div>`;
+      continue;
+    }
+
+    // Detect end of comparables
+    if (inComparables && line.match(/^[6-9]\.|^recommendation|^red flag/i)) {
+      inComparables = false;
+      if (comparableRows.length > 0) {
+        html += buildComparableTable(comparableRows);
+        comparableRows = [];
+      }
+    }
+
+    // Collect comparable rows
+    if (inComparables && line.match(/[£€$\d]/)) {
+      comparableRows.push(line);
+      continue;
+    }
+
+    // Numbered section headers
+    if (line.match(/^\d+\.\s+[A-Z]/)) {
+      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
+        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line.replace(/\*\*/g,'')}</h4>
+      </div>`;
+      continue;
+    }
+
+    // Valuation range — highlight specially
+    if (line.match(/estimated.*value|fair.*value|valuation.*range|value.*range/i) && line.match(/[£€$]/)) {
+      const clean = line.replace(/\*\*/g,'<strong>').replace(/\*\*/g,'</strong>');
+      html += `<div style="background:#2c1f0e;border-radius:3px;padding:1rem 1.25rem;margin:0.75rem 0 1rem;">
+        <p style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8b84b;margin:0;line-height:1.6;">${clean}</p>
+      </div>`;
+      continue;
+    }
+
+    // Authenticity confidence %
+    if (line.match(/confidence.*\d+%|\d+%.*confidence/i)) {
+      line = line.replace(/\*\*/g, '');
+      html += `<div style="background:#f0f7ee;border-left:4px solid #1a4a2e;padding:8px 14px;margin:0.5rem 0;">
+        <p style="font-size:14px;color:#1a4a2e;font-weight:700;margin:0;">${line}</p>
+      </div>`;
+      continue;
+    }
+
+    // Overall grade
+    if (line.match(/overall.*grade|grade.*[A-D][+-]?/i)) {
+      line = line.replace(/\*\*/g, '');
+      html += `<div style="background:#f5edd6;border:1px solid #c9922a;border-radius:3px;padding:8px 14px;margin:0.5rem 0;display:inline-block;">
+        <p style="font-size:14px;color:#2c1f0e;font-weight:700;margin:0;">${line}</p>
+      </div>`;
+      continue;
+    }
+
+    // Sub-headings ending with colon
+    if (line.match(/^[A-Z][^.!?]{3,}:\s*$/) && line.length < 60) {
+      const clean = line.replace(/\*\*/g,'').replace(/:$/, '');
+      html += `<p style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:#2c1f0e;margin:1rem 0 0.3rem;">${clean}</p>`;
+      continue;
+    }
+
+    // Bullet points
+    if (line.match(/^[-•*]\s/)) {
+      const clean = line.replace(/^[-•*]\s/, '').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+      html += `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.35rem;padding-left:1.25rem;border-left:2px solid #e8d9b5;">${clean}</p>`;
+      continue;
+    }
+
+    // Convert inline **bold**
+    line = line.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+
+    // ALL CAPS headings
+    if (line.match(/^[A-Z\s\d.—:]{8,}$/) && !line.match(/[a-z]/)) {
+      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
+        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4>
+      </div>`;
+      continue;
+    }
+
+    html += `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
+  }
+
+  // Flush any remaining comparables
+  if (comparableRows.length > 0) {
+    html += buildComparableTable(comparableRows);
+  }
+
+  return html;
+}
+
+function buildComparableTable(rows) {
+  if (!rows.length) return '';
+  const tableRows = rows.map(row => {
+    // Try to parse: "Description — £X (Source, Year)" or similar
+    row = row.replace(/^[-•*]\s/, '').replace(/\*\*/g, '');
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #e8d9b5;font-size:13.5px;color:#2c1f0e;line-height:1.6;">${row}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table style="width:100%;border-collapse:collapse;margin:0.5rem 0 1rem;background:#fff;border:1px solid #e8d9b5;">
+    <thead>
+      <tr>
+        <th style="background:#f5edd6;padding:7px 10px;text-align:left;font-family:Georgia,serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9922a;border-bottom:2px solid #c9922a;">Comparable sale</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>`;
+}
+
+
 async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl) {
   const price = `${listing.price?.value} ${listing.price?.currency}`;
+  const analysisHtml = parseAnalysisToHtml(analysisText);
 
-  // Convert analysis text to rich HTML
-  const analysisHtml = analysisText
-    .split('\n')
-    .filter(line => line.trim())
-    .map(line => {
-      if (line.match(/^\d+\.|^[A-Z\s]+—|^[A-Z\s]+:/)) {
-        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 12px;margin:1.25rem 0 0.5rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4></div>`;
-      }
-      if (line.startsWith('**') || line.startsWith('•') || line.startsWith('-')) {
-        return `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.4rem;padding-left:1rem;border-left:2px solid #e8d9b5;">${line.replace(/^[\*\-•]\s*/, '')}</p>`;
-      }
-      return `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
-    })
-    .join('');
+  const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
-    bcc: 'alan@aka.ie',
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
     subject: `3scouts Deep Analysis — ${listing.title?.substring(0, 50)}`,
     html: `
-      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #f5edd6; padding: 0; border-top: 4px solid #c9922a;">
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
 
-        <div style="background: #2c1f0e; padding: 1rem 1.5rem; border-bottom: 2px solid #c9922a;">
-          <p style="font-size: 11px; letter-spacing: 2px; color: #c9922a; margin: 0 0 4px; text-transform: uppercase;">3scouts · Deep Analysis Report</p>
-          <h2 style="font-size: 1.1rem; font-weight: 500; color: #fffdf7; margin: 0; line-height: 1.4;">${listing.title}</h2>
-          <p style="font-size: 13px; color: rgba(255,255,255,0.5); margin: 6px 0 0;">Listed at ${price} &nbsp;·&nbsp; ${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <!-- Header -->
+        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Deep Analysis Report</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0 0 6px;line-height:1.4;">${listing.title}</h2>
+          <table style="border-collapse:collapse;width:100%;">
+            <tr>
+              <td style="font-size:13px;color:rgba(255,255,255,0.6);">Listed at <strong style="color:#e8b84b;">${price}</strong></td>
+              <td style="font-size:13px;color:rgba(255,255,255,0.4);text-align:right;">${dateStr}</td>
+            </tr>
+          </table>
         </div>
 
+        <!-- Listing image -->
         ${imageUrl ? `
-        <div style="background: #e8d9b5; text-align: center; padding: 1rem;">
-          <img src="${imageUrl}" alt="${listing.title}" style="max-width: 100%; max-height: 280px; object-fit: contain;">
+        <div style="background:#1a0e05;text-align:center;padding:1rem 1.5rem;">
+          <img src="${imageUrl}" alt="${listing.title}" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:3px;">
         </div>` : ''}
 
-        <div style="padding: 1.5rem; background: #ffffff; border-bottom: 1px solid #e8d9b5;">
+        <!-- Listing meta strip -->
+        <div style="background:#f5edd6;padding:0.6rem 1.5rem;border-bottom:1px solid #e8d9b5;">
+          <table style="border-collapse:collapse;width:100%;font-size:12.5px;color:#8b6344;">
+            <tr>
+              <td><strong style="color:#2c1f0e;">Condition:</strong> ${listing.condition || 'Not specified'}</td>
+              <td><strong style="color:#2c1f0e;">Location:</strong> ${listing.itemLocation?.country || 'Not specified'}</td>
+              <td style="text-align:right;"><a href="${listing.itemWebUrl}" style="color:#c9922a;font-weight:700;text-decoration:none;">View on eBay →</a></td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Analysis body -->
+        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
           ${analysisHtml}
         </div>
 
-        <div style="background: #e8d9b5; padding: 0.75rem 1.5rem;">
-          <p style="font-size: 12px; color: #8b6344; margin: 0; line-height: 1.7;">
+        <!-- Subscriber brief reminder -->
+        <div style="background:#f5edd6;padding:0.75rem 1.5rem;border-bottom:1px solid #e8d9b5;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
+            <strong style="color:#2c1f0e;">Your brief:</strong> ${subscriber.description || subscriber.category}
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
             Without physically seeing and examining an item, no definitive appraisal can be made. This Deep Analysis is based on available listing photographs and market data only. Always satisfy yourself on authenticity and condition before purchasing. You are protected by eBay's Money Back Guarantee if an item is not as described.
-            &nbsp;·&nbsp; <a href="${process.env.SITE_URL}" style="color: #c9922a;">3scouts.com</a>
+            &nbsp;·&nbsp; <a href="${process.env.SITE_URL}" style="color:#c9922a;">3scouts.com</a>
+            &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
           </p>
         </div>
 
@@ -570,7 +731,7 @@ async function sendDeepAnalysisLimitEmail(subscriber) {
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
-    bcc: 'alan@aka.ie',
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
     subject: '3scouts — Deep Analysis allowance reached',
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
@@ -786,7 +947,7 @@ async function runDeepAnalysisFromDescription(subscriberId, description, imageDa
 
     const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com. The service is based in Ireland and primarily serves European and UK collectors.
 
-A subscriber has submitted photos of an item they want appraised and valued.
+A subscriber has submitted ${imageContents.length} photo${imageContents.length > 1 ? 's' : ''} of a SINGLE item they want appraised and valued. All photos are of the same item — some may show the front, back, details or markings of the same piece. Do not treat them as separate items.
 
 Their description: ${description}
 
@@ -810,8 +971,8 @@ Be specific, expert and honest. Note that without physically examining the item,
     }];
 
     const claudeResponse = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 4000,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
       messages,
     });
 
@@ -831,7 +992,7 @@ Be specific, expert and honest. Note that without physically examining the item,
     );
 
     // Send branded appraisal email
-    await sendValuationEmail(subscriber, description, analysisText);
+    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls);
 
     // Send follow-up subscription nudge after 2 hours if not already a subscriber
     setTimeout(async () => {
@@ -848,71 +1009,60 @@ Be specific, expert and honest. Note that without physically examining the item,
   }
 }
 
-async function sendValuationEmail(subscriber, description, analysisText) {
-  const analysisHtml = analysisText
-    .split('\n')
-    .filter(line => line.trim() && line.trim() !== '---')
-    .map(line => {
-      // Strip markdown heading prefixes # ## ###
-      line = line.replace(/^#{1,3}\s+/, '');
+async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls) {
+  const analysisHtml = parseAnalysisToHtml(analysisText);
+  const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Section headers — numbered like "1. ITEM IDENTIFICATION"
-      if (line.match(/^\d+\.\s+[A-Z]/)) {
-        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4></div>`;
-      }
-
-      // Sub-headings that end with colon e.g. "The Maker:"
-      if (line.match(/^[A-Z][^.!?]*:$/) || line.match(/^[A-Z][^.!?]*:\s*$/)) {
-        const clean = line.replace(/\*\*/g, '').replace(/:$/, '');
-        return `<p style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:#2c1f0e;margin:1rem 0 0.3rem;">${clean}</p>`;
-      }
-
-      // Bullet points
-      if (line.match(/^[-•*]\s/)) {
-        const clean = line.replace(/^[-•*]\s/, '').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        return `<p style="font-size:14.5px;color:#5a3e20;line-height:1.8;margin:0 0 0.35rem;padding-left:1.25rem;border-left:2px solid #e8d9b5;">${clean}</p>`;
-      }
-
-      // Convert **bold** inline
-      line = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-      // ALL CAPS lines are sub-headings
-      if (line.match(/^[A-Z\s]{6,}$/) && line.trim().length > 5) {
-        return `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4></div>`;
-      }
-
-      return `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
-    })
-    .join('');
-
-  const textContent = analysisText;
+  // Build submitted photos strip (first 4 photos)
+  const photoStrip = (imageDataUrls || []).slice(0, 4).map(dataUrl =>
+    `<img src="${dataUrl}" style="width:130px;height:100px;object-fit:cover;border-radius:3px;border:1px solid #b8945a;" alt="Submitted photo">`
+  ).join('');
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: subscriber.email,
-    bcc: 'alan@aka.ie',
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
     subject: `3scouts Valuation Report — ${description.substring(0, 50)}`,
-    text: `3scouts Valuation Report\n\n${description}\n\n${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n${textContent}\n\n---\nWithout physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only.\n\n3scouts.com · alan@3scouts.com`,
+    text: `3scouts Valuation Report\n\n${description}\n\n${dateStr}\n\n${analysisText}\n\n---\nWithout physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only.\n\n3scouts.com · alan@3scouts.com`,
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
 
+        <!-- Header -->
         <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
           <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Valuation Report</p>
-          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;line-height:1.4;">${description.substring(0, 80)}</h2>
-          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">${new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0 0 5px;line-height:1.4;">${description.substring(0, 100)}</h2>
+          <p style="font-size:13px;color:rgba(255,255,255,0.45);margin:0;">${dateStr}</p>
         </div>
 
+        <!-- Submitted photos -->
+        ${photoStrip ? `
+        <div style="background:#1a0e05;padding:1rem 1.5rem;border-bottom:1px solid #3a2a15;">
+          <p style="font-size:10px;letter-spacing:1.5px;color:#c9922a;text-transform:uppercase;margin:0 0 8px;">Submitted photos</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">${photoStrip}</div>
+        </div>` : ''}
+
+        <!-- Analysis body -->
         <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
           ${analysisHtml}
         </div>
 
+        <!-- Subscribe CTA (only for non-subscribers) -->
+        ${!subscriber.active ? `
+        <div style="background:#2c1f0e;padding:1.25rem 1.5rem;border-bottom:1px solid #c9922a;">
+          <p style="font-family:Georgia,serif;font-size:13px;font-weight:700;color:#c9922a;letter-spacing:1px;text-transform:uppercase;margin:0 0 0.5rem;">Enjoyed your appraisal?</p>
+          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. First 30 days free.</p>
+          <a href="https://www.3scouts.com/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;border-radius:3px;text-decoration:none;">Start my free trial →</a>
+        </div>` : ''}
+
+        <!-- Footer -->
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
             Without physically seeing and examining an item, no definitive appraisal can be made. This valuation is based on the photographs and description provided only. Always satisfy yourself on authenticity and condition before purchasing or selling.
             &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
           </p>
         </div>
+
       </div>
     `,
   });
