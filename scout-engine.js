@@ -770,6 +770,127 @@ async function sendValuationFollowUp(email, name) {
 
 // ── SUBSCRIBER MANAGEMENT ─────────────────────────────────────────
 
+async function runDeepAnalysisFromDescription(subscriberId, description, imageDataUrls) {
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client = await pool.connect();
+
+  try {
+    const { rows } = await client.query('SELECT * FROM subscribers WHERE id = $1', [subscriberId]);
+    if (!rows.length) throw new Error('Subscriber not found');
+    const subscriber = rows[0];
+
+    // Check allowance
+    if (subscriber.deep_analyses_used >= subscriber.deep_analyses_limit) {
+      await sendDeepAnalysisLimitEmail(subscriber);
+      return;
+    }
+
+    // Build image content
+    console.log(`runDeepAnalysis: received ${imageDataUrls.length} image(s) for ${subscriber.email}`);
+    const imageContents = [];
+    for (const dataUrl of (imageDataUrls || []).slice(0, 5)) {
+      const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (matches) {
+        console.log(`  Image: mime=${matches[1]} size=${matches[2].length} chars`);
+        imageContents.push({ type: 'image', source: { type: 'base64', media_type: matches[1], data: matches[2] } });
+      }
+    }
+    console.log(`runDeepAnalysis: sending ${imageContents.length} image(s) to Claude`);
+
+    const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com. The service is based in Ireland and primarily serves European and UK collectors.
+
+A subscriber has submitted ${imageContents.length} photo${imageContents.length > 1 ? 's' : ''} of a SINGLE item they want appraised and valued. All photos are of the same item — some may show the front, back, details or markings of the same piece. Do not treat them as separate items.
+
+Their description: ${description}
+
+Please provide a full Deep Analysis covering:
+1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
+2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
+3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
+4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible. Use EUR (€) or GBP (£) for valuations.
+5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
+6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
+7. ANY RED FLAGS — What should the owner verify or be cautious about?
+
+Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings. Today's date is June 2026. For comparable sales, use the most recent data available and note that prices shown are from your knowledge base.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
+      messages: [{
+        role: 'user',
+        content: [
+          ...imageContents,
+          { type: 'text', text: prompt }
+        ]
+      }]
+    });
+
+    const analysisText = response.content[0].text;
+
+    // Save to database
+    const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
+    const allImages = imageDataUrls && imageDataUrls.length > 0 ? JSON.stringify(imageDataUrls) : null;
+    const result = await client.query(
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, completed_at)
+       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
+      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), allImages || firstImage, analysisText]
+    );
+    const reportId = result.rows[0].id;
+
+    // Update usage count
+    await client.query(
+      'UPDATE subscribers SET deep_analyses_used = deep_analyses_used + 1 WHERE id = $1',
+      [subscriberId]
+    );
+
+    // Send notification email with report link
+    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId);
+
+    // Send follow-up subscription nudge after 2 hours if not already a subscriber
+    if (!subscriber.active || subscriber.plan === 'Free Valuation') {
+      setTimeout(async () => {
+        try { await sendValuationFollowUp(subscriber.email, subscriber.name); }
+        catch(e) { console.error('Follow-up email error:', e.message); }
+      }, 2 * 60 * 60 * 1000);
+    }
+
+    console.log(`Valuation completed for ${subscriber.email}`);
+
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+async function sendDeepAnalysisLimitEmail(subscriber) {
+  const topupUrl = `${process.env.SITE_URL}/topup?email=${encodeURIComponent(subscriber.email)}`;
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: subscriber.email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: '3scouts — Deep Analysis allowance reached',
+    html: `
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Allowance reached</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your Deep Analysis allowance is used up</h2>
+        </div>
+        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Dear ${subscriber.name}, you've used all ${subscriber.deep_analyses_limit} Deep Analyses included in your current plan.</p>
+          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">Top up for just <strong style="color:#2c1f0e;">€2 per 10 analyses</strong> — or upgrade your plan.</p>
+          <a href="${topupUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Top up — €2 for 10 analyses →</a>
+        </div>
+        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;">3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a></p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 async function upsertSubscriber(data) {
   const { Pool } = require('pg');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
