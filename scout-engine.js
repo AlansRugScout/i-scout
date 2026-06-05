@@ -467,7 +467,7 @@ Item location: ${listing.itemLocation?.country}
 Seller feedback: ${listing.seller?.feedbackScore} (${listing.seller?.feedbackPercentage}%)
 Description: ${(listing.description || '').substring(0, 1000)}
 
-Please be specific, expert and honest. Without physically seeing the item, caveat your assessment appropriately. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings.`;
+Please be specific, expert and honest. Without physically seeing the item, caveat your assessment appropriately. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings. Today's date is June 2026. For comparable sales, use the most recent data available from your training and note that prices shown are approximate and from your knowledge base rather than live auction results.`;
 
     const messages = [
       {
@@ -481,7 +481,7 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
 
     const claudeResponse = await anthropic.messages.create({
       model: 'claude-opus-4-5',
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages,
     });
 
@@ -799,7 +799,7 @@ Please provide a full Deep Analysis covering:
 6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
 7. ANY RED FLAGS — What should the owner verify or be cautious about?
 
-Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with clear section headings followed by a colon.`;
+Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with clear section headings followed by a colon. Today's date is June 2026. For comparable sales, use the most recent data available and note that prices shown are from your knowledge base.`;
 
     const messages = [{
       role: 'user',
@@ -811,7 +811,7 @@ Be specific, expert and honest. Note that without physically examining the item,
 
     const claudeResponse = await anthropic.messages.create({
       model: 'claude-opus-4-5',
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages,
     });
 
