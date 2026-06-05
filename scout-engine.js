@@ -514,11 +514,21 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
 function parseAnalysisToHtml(analysisText) {
   const lines = analysisText
     .split('\n')
-    .filter(line => line.trim() && line.trim() !== '---');
+    .map(l => l.trim())
+    .filter(l => l && l !== '---' && l !== '***');
 
   let html = '';
+  let sectionNum = 0;
   let inComparables = false;
   let comparableRows = [];
+
+  const flushComparables = () => {
+    if (comparableRows.length > 0) {
+      html += buildComparableTable(comparableRows);
+      comparableRows = [];
+    }
+    inComparables = false;
+  };
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
@@ -526,80 +536,69 @@ function parseAnalysisToHtml(analysisText) {
     // Strip markdown prefixes
     line = line.replace(/^#{1,3}\s+/, '');
 
-    // Detect COMPARABLE SALES section — render as table
-    if (line.match(/^4\.|comparable.*sales/i)) {
-      inComparables = true;
-      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
-        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line.replace(/\*\*/g,'')}</h4>
-      </div>`;
-      continue;
-    }
+    // Detect numbered section headers — ONLY lines starting with digit+dot
+    const sectionMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (sectionMatch) {
+      flushComparables();
+      sectionNum = parseInt(sectionMatch[1]);
+      const title = sectionMatch[2].replace(/\*\*/g,'');
 
-    // Detect VALUATION section — render as highlight panel
-    if (line.match(/^5\.|^valuation/i)) {
-      inComparables = false;
-      if (comparableRows.length > 0) {
-        html += buildComparableTable(comparableRows);
-        comparableRows = [];
+      // Section 4 = Comparable Sales — flag it
+      if (sectionNum === 4) {
+        inComparables = true;
+        html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.4rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${title}</h4></div>`;
+      } else {
+        html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.4rem;"><h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${title}</h4></div>`;
       }
-      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
-        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line.replace(/\*\*/g,'')}</h4>
-      </div>`;
       continue;
     }
 
-    // Detect end of comparables
-    if (inComparables && line.match(/^[6-9]\.|^recommendation|^red flag/i)) {
-      inComparables = false;
-      if (comparableRows.length > 0) {
-        html += buildComparableTable(comparableRows);
-        comparableRows = [];
+    // If we're in comparables section, collect rows until next numbered section
+    if (inComparables) {
+      // Only flush if a new numbered section starts (handled above)
+      // Skip lines that are section-like headers
+      if (!line.match(/^[A-Z\s]{15,}$/) || line.match(/[a-z£€$\d]/)) {
+        const clean = line.replace(/^[-•*\d]+\.?\s*/, '').replace(/\*\*/g,'');
+        if (clean.length > 10) comparableRows.push(clean);
       }
-    }
-
-    // Collect comparable rows
-    if (inComparables && line.match(/[£€$\d]/)) {
-      comparableRows.push(line);
       continue;
     }
 
-    // Numbered section headers
-    if (line.match(/^\d+\.\s+[A-Z]/)) {
-      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
-        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line.replace(/\*\*/g,'')}</h4>
+    // Valuation range — highlight panel
+    if (sectionNum === 5 && line.match(/[£€$]/) && line.match(/\d/)) {
+      const clean = line.replace(/\*\*/g,'');
+      html += `<div style="background:#2c1f0e;border-radius:3px;padding:1rem 1.25rem;margin:0.5rem 0 0.75rem;"><p style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8b84b;margin:0;line-height:1.6;">${clean}</p></div>`;
+      continue;
+    }
+
+    // Authenticity confidence % — green panel
+    if (line.match(/\d+%/) && line.match(/confidence|authentic|genuine/i)) {
+      const pct = parseInt((line.match(/(\d+)%/) || [])[1] || 0);
+      const barColor = pct >= 75 ? '#1a6b2e' : pct >= 50 ? '#c9922a' : '#8b2020';
+      const clean = line.replace(/\*\*/g,'');
+      html += `<div style="background:#f0f7ee;border-left:4px solid #1a4a2e;padding:10px 14px;margin:0.5rem 0 0.75rem;">
+        <p style="font-size:14px;color:#1a4a2e;font-weight:700;margin:0 0 8px;">${clean}</p>
+        ${pct ? `<div style="background:#d0e8d0;border-radius:3px;height:6px;overflow:hidden;"><div style="background:${barColor};height:100%;width:${pct}%;border-radius:3px;"></div></div>` : ''}
       </div>`;
       continue;
     }
 
-    // Valuation range — highlight specially
-    if (line.match(/estimated.*value|fair.*value|valuation.*range|value.*range/i) && line.match(/[£€$]/)) {
-      const clean = line.replace(/\*\*/g,'<strong>').replace(/\*\*/g,'</strong>');
-      html += `<div style="background:#2c1f0e;border-radius:3px;padding:1rem 1.25rem;margin:0.75rem 0 1rem;">
-        <p style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8b84b;margin:0;line-height:1.6;">${clean}</p>
+    // Condition grade — extract grade letter and build bar
+    if (line.match(/overall.*grade|grade.*overall/i) || (sectionNum === 3 && line.match(/grade\s*[A-D][+-]?/i))) {
+      const gradeMatch = line.match(/grade\s*([A-D][+-]?)/i);
+      const grade = gradeMatch ? gradeMatch[1].toUpperCase() : null;
+      const gradeWidths = {'A+':100,'A':92,'A-':85,'B+':78,'B':70,'B-':62,'C+':54,'C':46,'C-':38,'D':25};
+      const gradeColors = {'A+':'#1a6b2e','A':'#1a6b2e','A-':'#2d8a3e','B+':'#c9922a','B':'#c9922a','B-':'#d4882a','C+':'#8b4a1e','C':'#8b2020','C-':'#8b2020','D':'#6b1010'};
+      const clean = line.replace(/\*\*/g,'');
+      html += `<div style="background:#f5edd6;border:1px solid #c9922a;border-radius:3px;padding:10px 14px;margin:0.5rem 0 0.75rem;">
+        <p style="font-size:14px;color:#2c1f0e;font-weight:700;margin:0 0 ${grade ? '8px' : '0'};">${clean}</p>
+        ${grade ? `<div style="background:#e8d9b5;border-radius:3px;height:6px;overflow:hidden;"><div style="background:${gradeColors[grade]||'#c9922a'};height:100%;width:${gradeWidths[grade]||50}%;border-radius:3px;"></div></div>` : ''}
       </div>`;
       continue;
     }
 
-    // Authenticity confidence %
-    if (line.match(/confidence.*\d+%|\d+%.*confidence/i)) {
-      line = line.replace(/\*\*/g, '');
-      html += `<div style="background:#f0f7ee;border-left:4px solid #1a4a2e;padding:8px 14px;margin:0.5rem 0;">
-        <p style="font-size:14px;color:#1a4a2e;font-weight:700;margin:0;">${line}</p>
-      </div>`;
-      continue;
-    }
-
-    // Overall grade
-    if (line.match(/overall.*grade|grade.*[A-D][+-]?/i)) {
-      line = line.replace(/\*\*/g, '');
-      html += `<div style="background:#f5edd6;border:1px solid #c9922a;border-radius:3px;padding:8px 14px;margin:0.5rem 0;display:inline-block;">
-        <p style="font-size:14px;color:#2c1f0e;font-weight:700;margin:0;">${line}</p>
-      </div>`;
-      continue;
-    }
-
-    // Sub-headings ending with colon
-    if (line.match(/^[A-Z][^.!?]{3,}:\s*$/) && line.length < 60) {
+    // Sub-headings ending with colon (short lines only)
+    if (line.match(/^[A-Z][^.!?]{3,50}:\s*$/) && !line.match(/^\d/)) {
       const clean = line.replace(/\*\*/g,'').replace(/:$/, '');
       html += `<p style="font-family:Georgia,serif;font-size:15px;font-weight:700;color:#2c1f0e;margin:1rem 0 0.3rem;">${clean}</p>`;
       continue;
@@ -615,41 +614,29 @@ function parseAnalysisToHtml(analysisText) {
     // Convert inline **bold**
     line = line.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
 
-    // ALL CAPS headings
-    if (line.match(/^[A-Z\s\d.—:]{8,}$/) && !line.match(/[a-z]/)) {
-      html += `<div style="background:#f5edd6;border-left:4px solid #c9922a;padding:8px 14px;margin:1.5rem 0 0.6rem;">
-        <h4 style="font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c9922a;margin:0;">${line}</h4>
-      </div>`;
-      continue;
-    }
-
     html += `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.6rem;">${line}</p>`;
   }
 
   // Flush any remaining comparables
-  if (comparableRows.length > 0) {
-    html += buildComparableTable(comparableRows);
-  }
+  flushComparables();
 
   return html;
 }
 
 function buildComparableTable(rows) {
   if (!rows.length) return '';
-  const tableRows = rows.map(row => {
-    // Try to parse: "Description — £X (Source, Year)" or similar
-    row = row.replace(/^[-•*]\s/, '').replace(/\*\*/g, '');
-    return `<tr>
-      <td style="padding:7px 10px;border-bottom:1px solid #e8d9b5;font-size:13.5px;color:#2c1f0e;line-height:1.6;">${row}</td>
+  const tableRows = rows.map((row, idx) => {
+    row = row.replace(/\*\*/g, '');
+    const bg = idx % 2 === 0 ? '#ffffff' : '#faf7f2';
+    return `<tr style="background:${bg};">
+      <td style="padding:9px 12px;border-bottom:1px solid #e8d9b5;font-size:13.5px;color:#2c1f0e;line-height:1.65;">${row}</td>
     </tr>`;
   }).join('');
 
-  return `<table style="width:100%;border-collapse:collapse;margin:0.5rem 0 1rem;background:#fff;border:1px solid #e8d9b5;">
-    <thead>
-      <tr>
-        <th style="background:#f5edd6;padding:7px 10px;text-align:left;font-family:Georgia,serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9922a;border-bottom:2px solid #c9922a;">Comparable sale</th>
-      </tr>
-    </thead>
+  return `<table style="width:100%;border-collapse:collapse;margin:0.5rem 0 1.25rem;background:#fff;border:1px solid #e8d9b5;border-radius:3px;overflow:hidden;">
+    <thead><tr>
+      <th style="background:#c9922a;padding:8px 12px;text-align:left;font-family:Georgia,serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Comparable sale</th>
+    </tr></thead>
     <tbody>${tableRows}</tbody>
   </table>`;
 }
