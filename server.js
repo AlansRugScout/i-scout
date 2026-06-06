@@ -464,11 +464,12 @@ app.post('/request-valuation', async (req, res) => {
         }
       }
 
+      const accessToken = require('crypto').randomBytes(16).toString('hex');
       await client2.query(
-        `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit, deep_analyses_used)
-         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1, 0)
+        `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit, deep_analyses_used, access_token)
+         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1, 0, $4)
          ON CONFLICT (email) DO NOTHING`,
-        [name || 'Visitor', email, description]
+        [name || 'Visitor', email, description, accessToken]
       );
       const newSub = await client2.query('SELECT id, deep_analyses_used, deep_analyses_limit, plan FROM subscribers WHERE email = $1', [email]);
       client2.release();
@@ -1053,6 +1054,78 @@ function savePDF(){
 }
 
 
+
+// ── ACCOUNT PORTAL ─────────────────────────────────────────────
+
+app.get('/account', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'account.html'));
+});
+
+app.get('/account/data', async (req, res) => {
+  const { t } = req.query;
+  if (!t || !/^[a-f0-9]{32}$/.test(t)) return res.status(400).json({ error: 'Invalid token' });
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const subResult = await client.query(
+      'SELECT id, name, email, plan, deep_analyses_used, deep_analyses_limit, active FROM subscribers WHERE access_token = $1',
+      [t]
+    );
+    if (!subResult.rows.length) { client.release(); await pool.end(); return res.status(404).json({ error: 'Account not found. Please use the link from your email.' }); }
+    const sub = subResult.rows[0];
+    const reportsResult = await client.query(
+      `SELECT listing_title, completed_at, report_token
+       FROM deep_analyses
+       WHERE subscriber_id = $1
+       ORDER BY completed_at DESC LIMIT 10`,
+      [sub.id]
+    );
+    client.release();
+    await pool.end();
+    res.json({
+      name: sub.name,
+      email: sub.email,
+      plan: sub.plan,
+      deep_analyses_used: sub.deep_analyses_used,
+      deep_analyses_limit: sub.deep_analyses_limit,
+      active: sub.active,
+      reports: reportsResult.rows,
+    });
+  } catch(err) {
+    console.error('Account data error:', err.message);
+    res.status(500).json({ error: 'Server error — please try again' });
+  }
+});
+
+app.post('/account/submit-valuation', async (req, res) => {
+  const { token, description, images } = req.body;
+  if (!token || !/^[a-f0-9]{32}$/.test(token)) return res.status(400).json({ error: 'Invalid token' });
+  if (!description) return res.status(400).json({ error: 'Description is required' });
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const subResult = await client.query(
+      'SELECT id, deep_analyses_used, deep_analyses_limit, plan FROM subscribers WHERE access_token = $1',
+      [token]
+    );
+    client.release();
+    await pool.end();
+    if (!subResult.rows.length) return res.status(404).json({ error: 'Account not found' });
+    const sub = subResult.rows[0];
+    if (sub.deep_analyses_used >= sub.deep_analyses_limit) {
+      return res.status(403).json({ error: 'You have used all your Deep Analyses for this period. Please top up or upgrade your plan.' });
+    }
+    // Fire analysis in background
+    runDeepAnalysisFromDescription(sub.id, description, images || [])
+      .catch(err => console.error('Account valuation error:', err.message));
+    res.json({ success: true });
+  } catch(err) {
+    console.error('Account submit error:', err.message);
+    res.status(500).json({ error: 'Server error — please try again' });
+  }
+});
 
 app.get('/report/:token', async (req, res) => {
   const { token } = req.params;
