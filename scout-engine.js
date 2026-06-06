@@ -53,9 +53,20 @@ async function initDatabase() {
         listing_price TEXT,
         listing_image TEXT,
         analysis_text TEXT,
+        report_token VARCHAR(32) UNIQUE,
         requested_at TIMESTAMP DEFAULT NOW(),
         completed_at TIMESTAMP
       );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS follow_up_queue (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        send_after TIMESTAMPTZ NOT NULL,
+        sent BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
     `);
     console.log('Database initialised');
   } finally {
@@ -488,10 +499,11 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     const analysisText = claudeResponse.content[0].text;
 
     // Save to database
+    const reportToken = require('crypto').randomBytes(16).toString('hex');
     const result = await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
-      [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText]
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, report_token, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING id`,
+      [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText, reportToken]
     );
     const reportId = result.rows[0].id;
 
@@ -502,7 +514,7 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     );
 
     // Send Deep Analysis email with report link
-    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId);
+    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId, reportToken);
 
     console.log(`Deep Analysis completed for ${subscriber.email} — ${listing.title}`);
 
@@ -643,9 +655,9 @@ function buildComparableTable(rows) {
 }
 
 
-async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId) {
+async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId, reportToken) {
   const price = `${listing.price?.value} ${listing.price?.currency}`;
-  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
+  const reportUrl = `${process.env.SITE_URL}/report/${reportToken || reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
   await resend.emails.send({
@@ -692,8 +704,8 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
 }
 
 
-async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId) {
-  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
+async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken) {
+  const reportUrl = `${process.env.SITE_URL}/report/${reportToken || reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
   const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
 
@@ -832,10 +844,11 @@ Be specific, expert and honest. Note that without physically examining the item,
     // Save to database
     const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
     const allImages = imageDataUrls && imageDataUrls.length > 0 ? JSON.stringify(imageDataUrls) : null;
+    const reportToken = require('crypto').randomBytes(16).toString('hex');
     const result = await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, completed_at)
-       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
-      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), allImages || firstImage, analysisText]
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, report_token, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
+      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), allImages || firstImage, analysisText, reportToken]
     );
     const reportId = result.rows[0].id;
 
@@ -846,14 +859,17 @@ Be specific, expert and honest. Note that without physically examining the item,
     );
 
     // Send notification email with report link
-    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId);
+    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
 
-    // Send follow-up subscription nudge after 2 hours if not already a subscriber
+    // Queue follow-up email — database-backed so it survives server restarts
     if (!subscriber.active || subscriber.plan === 'Free Valuation') {
-      setTimeout(async () => {
-        try { await sendValuationFollowUp(subscriber.email, subscriber.name); }
-        catch(e) { console.error('Follow-up email error:', e.message); }
-      }, 2 * 60 * 60 * 1000);
+      try {
+        await client.query(
+          `INSERT INTO follow_up_queue (email, name, send_after)
+           VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+          [subscriber.email, subscriber.name]
+        );
+      } catch(e) { console.error('Follow-up queue error:', e.message); }
     }
 
     console.log(`Valuation completed for ${subscriber.email}`);
@@ -1078,6 +1094,31 @@ function scheduleTopOfHour() {
 
 scheduleTopOfHour();
 
+async function processFollowUpQueue() {
+  const { Pool } = require('pg');
+  const pool2 = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client2 = await pool2.connect();
+  try {
+    const result = await client2.query(
+      `SELECT id, email, name FROM follow_up_queue
+       WHERE sent = FALSE AND send_after <= NOW()
+       LIMIT 10`
+    );
+    for (const row of result.rows) {
+      try {
+        await sendValuationFollowUp(row.email, row.name);
+        await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
+        console.log(`Follow-up sent to ${row.email}`);
+      } catch(e) {
+        console.error(`Follow-up failed for ${row.email}:`, e.message);
+      }
+    }
+  } finally {
+    client2.release();
+    await pool2.end();
+  }
+}
+
 module.exports = {
   initDatabase,
   runScouts,
@@ -1085,4 +1126,5 @@ module.exports = {
   deactivateSubscriber,
   runDeepAnalysis,
   runDeepAnalysisFromDescription,
+  processFollowUpQueue,
 };
