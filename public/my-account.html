@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account — 3scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{--parchment:#f5edd6;--parchment-dk:#e8d9b5;--ink:#2c1f0e;--ink-lt:#5a3e20;--sepia:#8b6344;--sepia-lt:#b8945a;--gold:#c9922a;--gold-lt:#e8b84b;--white:#fffdf7;--shadow:rgba(44,31,14,0.15);}
+  html{scroll-behavior:smooth;}
+  body{background:var(--parchment);color:var(--ink);font-family:'EB Garamond',Georgia,serif;font-size:17px;line-height:1.7;min-height:100vh;display:flex;flex-direction:column;}
+  nav{background:var(--ink);border-bottom:2px solid var(--gold);padding:0 2.5rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .nav-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;}
+  .nav-logo-text{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold-lt);letter-spacing:0.04em;}
+  .nav-logo-text em{font-style:normal;font-size:0.72rem;color:var(--gold);letter-spacing:0.06em;}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:3rem 1.5rem;}
+  .card{background:var(--white);border:1px solid var(--sepia-lt);border-top:4px solid var(--gold);border-radius:3px;padding:2.5rem;width:100%;max-width:460px;box-shadow:0 4px 20px var(--shadow);}
+  .card-tag{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem;}
+  .card h1{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;color:var(--ink);margin-bottom:0.5rem;line-height:1.3;}
+  .card p{font-size:15px;color:var(--sepia);line-height:1.7;margin-bottom:1.5rem;}
+  .form-group{margin-bottom:1.1rem;}
+  .form-group label{display:block;font-family:'Cinzel',serif;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-lt);margin-bottom:5px;}
+  .form-group input{width:100%;background:var(--parchment);border:1px solid var(--sepia-lt);border-radius:3px;padding:11px 13px;font-family:'EB Garamond',serif;font-size:17px;color:var(--ink);outline:none;transition:border-color .15s;}
+  .form-group input:focus{border-color:var(--gold);background:var(--white);}
+  .btn{width:100%;background:var(--gold);color:var(--ink);border:none;padding:14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:background .15s;}
+  .btn:hover{background:var(--gold-lt);}
+  .btn:disabled{opacity:0.6;cursor:not-allowed;}
+  .success{display:none;text-align:center;padding:1rem 0;}
+  .success h2{font-family:'Cinzel',serif;font-size:1.1rem;color:#1a4a2e;margin-bottom:0.75rem;}
+  .success p{font-size:15px;color:var(--sepia);line-height:1.7;}
+  .error{display:none;background:#fcebeb;border:1px solid #f7c1c1;border-radius:3px;padding:0.75rem 1rem;margin-top:0.75rem;font-size:14px;color:#8b2020;}
+  footer{background:#1a0e05;border-top:2px solid var(--gold);padding:1.25rem 2.5rem;flex-shrink:0;}
+  .footer-inner{max-width:460px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
+  .footer-logo{font-family:'Cinzel',serif;font-size:0.95rem;font-weight:700;color:var(--gold-lt);text-decoration:none;}
+  .footer-right{font-size:12px;color:rgba(255,255,255,0.35);}
+  .footer-right a{color:rgba(255,255,255,0.4);text-decoration:none;}
+  @media(max-width:500px){nav,footer{padding:0 1.25rem;}.card{padding:1.75rem 1.25rem;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <div style="display:flex;align-items:center;gap:4px;">
+      <span style="display:block;width:9px;height:9px;border-radius:50%;background:#c9922a;"></span>
+      <span style="display:block;width:9px;height:9px;border-radius:50%;background:#e8b84b;"></span>
+      <span style="display:block;width:9px;height:9px;border-radius:50%;background:#c9922a;opacity:0.5;"></span>
+    </div>
+    <span class="nav-logo-text">3scouts<em>.com</em></span>
+  </a>
+  <a href="/" style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.6);text-decoration:none;">← Homepage</a>
+</nav>
+
+<main>
+  <div class="card">
+    <div class="card-tag">Subscriber access</div>
+    <h1>My Account</h1>
+    <p>Enter the email address on your 3scouts subscription and we'll send you a secure link to your account — no password needed.</p>
+
+    <form id="access-form">
+      <div class="form-group">
+        <label for="email">Your email address</label>
+        <input type="email" id="email" placeholder="your@email.com" required autocomplete="email">
+      </div>
+      <button type="submit" class="btn" id="submit-btn">Send my account link →</button>
+      <div class="error" id="error-msg"></div>
+    </form>
+
+    <div class="success" id="success-state">
+      <h2>Link sent ✓</h2>
+      <p>If that email is on a 3scouts subscription, you'll receive your account link within a minute. Check your inbox — it comes from <strong>scout@3scouts.com</strong>.</p>
+      <p style="margin-top:1rem;font-size:13px;color:var(--sepia);">Not a subscriber yet? <a href="/#brief" style="color:var(--gold);">Start your free trial →</a></p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <a href="/" class="footer-logo">3scouts.com</a>
+    <div class="footer-right">
+      <a href="mailto:alan@3scouts.com">alan@3scouts.com</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+document.getElementById('access-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const errDiv = document.getElementById('error-msg');
+  errDiv.style.display = 'none';
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/account/request-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('email').value }),
+    });
+    // Always show success — don't reveal whether email exists
+    document.getElementById('access-form').style.display = 'none';
+    document.getElementById('success-state').style.display = 'block';
+  } catch(err) {
+    btn.textContent = 'Send my account link →';
+    btn.disabled = false;
+    errDiv.textContent = 'Something went wrong — please try again or email alan@3scouts.com';
+    errDiv.style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>
