@@ -820,12 +820,17 @@ Please provide a full Deep Analysis covering:
 1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
 2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
 3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
-4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible. Use EUR (€) or GBP (£) for valuations.
+4. COMPARABLE SALES — What have similar items sold for at auction or privately? Give 3-5 comparable examples with prices and dates. IMPORTANT: include the highest known sale prices for this category — do not omit notable top results. Use EUR (€) or GBP (£) for all prices.
 5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
 6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
 7. ANY RED FLAGS — What should the owner verify or be cautious about?
 
-Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings. Today's date is June 2026. For comparable sales, use the most recent data available and note that prices shown are from your knowledge base.`;
+IMPORTANT INSTRUCTIONS:
+- Count all visible physical details carefully and precisely before stating any numbers (bells, rattles, coral pieces, hallmarks etc). Only state what you can clearly see.
+- For comparable sales, always include the highest known auction results for this type of item — do not omit significant sales.
+- Be specific, expert and honest. Without physically examining the item, your assessment is based on the photographs provided.
+- Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings.
+- Today's date is June 2026. For comparable sales, use the most recent data available and note prices are from your knowledge base.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
