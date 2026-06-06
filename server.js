@@ -639,8 +639,10 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (currentSection) sections.push({ title: currentSection, lines: currentContent });
 
   let confidence = null;
-  const confMatch = analysisText.match(/(\d+)\s*(?:%|percent)[^\n]{0,40}confidence|confidence[^\n]{0,40}(\d+)\s*(?:%|percent)/i);
-  if (confMatch) confidence = parseInt(confMatch[1] || confMatch[2]);
+  // Match "Authenticity Confidence: 88%" or "Confidence: 88 percent" on same line
+  const confMatch = analysisText.match(/Authenticity\s+Confidence[:\s]+(\d+)\s*(?:%|percent)/i)
+    || analysisText.match(/Confidence[:\s]+(\d+)\s*%/i);
+  if (confMatch) confidence = parseInt(confMatch[1]);
 
   let grade = null;
   const gradeMatch = analysisText.match(/[Oo]verall\s+[Gg]rade[:\s]+([A-D][+-]?)/);
