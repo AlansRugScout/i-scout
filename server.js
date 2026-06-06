@@ -615,192 +615,257 @@ app.get('/topup-success', async (req, res) => {
 
 // ── REPORT PAGE ───────────────────────────────────────────────────
 function generateReportPage(report, images, isEbay, dateStr) {
-  const analysisText = (report.analysis_text || '')
-    .replace(/^End of Report[^\n]*/im, '')
-    .trim();
+  const analysisText = (report.analysis_text || '').replace(/^End of Report[^\n]*/im, '').trim();
 
-  const sections = [];
-  let currentSection = null;
-  let currentContent = [];
-  const lines = analysisText.split('\n').map(l => l.trim()).filter(l => l && l !== '---');
-
-  for (const line of lines) {
-    const clean = line.replace(/^#{1,3}\s+/, '');
-    const sectionMatch = clean.match(/^(\d+)\.\s+(.+)/);
-    const capsHeader = clean.match(/^([A-Z][A-Z\s\/&]+[A-Z])$/) && clean.length > 5 && !clean.match(/[a-z£€$]/);
-    if (sectionMatch || capsHeader) {
-      if (currentSection) sections.push({ title: currentSection, lines: currentContent });
-      currentSection = sectionMatch ? sectionMatch[2].replace(/\*\*/g,'') : clean;
-      currentContent = [];
-    } else {
-      currentContent.push(clean);
-    }
-  }
-  if (currentSection) sections.push({ title: currentSection, lines: currentContent });
-
+  // ── Parse structured fields ──────────────────────────────────────
   let confidence = null;
-  // Match "Authenticity Confidence: 88%" or "Confidence: 88 percent" on same line
   const confMatch = analysisText.match(/Authenticity\s+Confidence[:\s]+(\d+)\s*(?:%|percent)/i)
     || analysisText.match(/Confidence[:\s]+(\d+)\s*%/i);
   if (confMatch) confidence = parseInt(confMatch[1]);
 
   let grade = null;
-  const gradeMatch = analysisText.match(/[Oo]verall\s+[Gg]rade[:\s]+([A-D][+-]?)/);
+  const gradeMatch = analysisText.match(/Overall\s+Grade[:\s]+([A-D][+-]?)/i);
   if (gradeMatch) grade = gradeMatch[1].toUpperCase();
 
   let valuation = null;
-  const valMatch = analysisText.match(/(?:Fair Market Value|Insurance.*?Value|fair open market value|estimate.*?value|value.*?at)[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i);
+  const valMatch = analysisText.match(/Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i)
+    || analysisText.match(/fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i)
+    || analysisText.match(/estimate[^€£$\d\n]{0,40}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i);
   if (valMatch) valuation = valMatch[1].trim();
 
-  const gradeColour = {'A+':'#1a4a2e','A':'#1a4a2e','A-':'#2d6b44','B+':'#4a7a1a','B':'#c9922a','B-':'#c97a22','C+':'#8b4020','C':'#8b2020','C-':'#6b1515','D':'#4a0a0a'};
-  const gradeWidth  = {'A+':98,'A':93,'A-':88,'B+':80,'B':72,'B-':65,'C+':55,'C':45,'C-':35,'D':20};
-  const gradeWidths = {'A+':100,'A':92,'A-':85,'B+':78,'B':70,'B-':62,'C+':54,'C':46,'C-':38,'D':25};
-  const gradeColors = {'A+':'#1a6b2e','A':'#1a6b2e','A-':'#2d8a3e','B+':'#c9922a','B':'#c9922a','B-':'#d4882a','C+':'#8b4a1e','C':'#8b3010','C-':'#8b2020','D':'#6b1010'};
-  const gc = gradeColour[grade] || '#c9922a';
-  const gw = gradeWidth[grade] || 70;
+  // ── Parse sections ───────────────────────────────────────────────
+  const sections = [];
+  let currentSection = null;
+  let currentLines = [];
+  const lines = analysisText.split('\n').map(l => l.trim()).filter(l => l && l !== '---');
 
+  for (const line of lines) {
+    const clean = line.replace(/^#{1,3}\s+/, '');
+    const numMatch = clean.match(/^(\d+)\.\s+(.+)/);
+    if (numMatch) {
+      if (currentSection) sections.push({ title: currentSection, lines: currentLines });
+      currentSection = numMatch[2].replace(/\*\*/g, '');
+      currentLines = [];
+    } else {
+      currentLines.push(clean);
+    }
+  }
+  if (currentSection) sections.push({ title: currentSection, lines: currentLines });
+
+  // ── Confidence display ───────────────────────────────────────────
+  const confColor = confidence === null ? '#c9922a'
+    : confidence >= 80 ? '#1a4a2e'
+    : confidence >= 60 ? '#c9922a' : '#8b2020';
+  const confBadgeClass = confidence === null ? 'badge-warn'
+    : confidence >= 80 ? 'badge-pass'
+    : confidence >= 60 ? 'badge-warn' : 'badge-fail';
+  const confBadgeText = confidence === null ? '— Confidence unknown'
+    : confidence >= 80 ? `◈ Authentic — Confidence: ${confidence}%`
+    : confidence >= 60 ? `⚠ Probable — Confidence: ${confidence}%`
+    : `✕ Uncertain — Confidence: ${confidence}%`;
+  const confVerdictClass = confidence === null ? 'verdict-warn'
+    : confidence >= 80 ? 'verdict-pass'
+    : confidence >= 60 ? 'verdict-warn' : 'verdict-fail';
+
+  // ── Grade display ────────────────────────────────────────────────
+  const gradeColors = {'A+':'#1a6b2e','A':'#1a6b2e','A-':'#2d8a3e','B+':'#4a7a1a','B':'#c9922a','B-':'#d4882a','C+':'#8b4a1e','C':'#8b3010','C-':'#8b2020','D':'#6b1010'};
+  const gradeWidths = {'A+':100,'A':92,'A-':85,'B+':78,'B':70,'B-':62,'C+':54,'C':46,'C-':38,'D':25};
+  const gradeDescs = {'A+':'Exceptional condition','A':'Excellent condition','A-':'Excellent condition','B+':'Very good condition','B':'Good condition','B-':'Good condition','C+':'Fair condition','C':'Fair condition','C-':'Below average condition','D':'Poor condition'};
+  const gc = gradeColors[grade] || '#c9922a';
+  const gw = gradeWidths[grade] || 60;
+  const gd = gradeDescs[grade] || 'Condition assessed';
+
+  // ── Photo grid ───────────────────────────────────────────────────
   const photoGrid = images.map(img => `
-    <div class="photo-item">
-      <img src="${img}" alt="Item photo" loading="lazy" onerror="this.parentElement.style.display='none'">
+    <div style="flex-shrink:0;border:2px solid var(--parchment-dk);border-radius:3px;overflow:hidden;box-shadow:0 3px 10px var(--shadow);background:#fff;">
+      <img src="${img}" alt="Item photo" loading="lazy" style="display:block;width:190px;height:155px;object-fit:cover;" onerror="this.parentElement.style.display='none'">
     </div>`).join('');
 
-  // Confidence colour
-  const confColor = confidence === null ? '#c9922a'
-    : confidence >= 80 ? '#1a6b2e'
-    : confidence >= 60 ? '#c9922a'
-    : '#8b2020';
-  const confLabel = confidence === null ? '—'
-    : confidence >= 80 ? 'High'
-    : confidence >= 60 ? 'Moderate'
-    : 'Low';
-
-  // SVG arc gauge helper
-  function arcGauge(pct, color) {
-    const r = 54, cx = 65, cy = 65;
-    const startAngle = -210, sweep = 240;
-    const deg = startAngle + (sweep * pct / 100);
-    const toRad = a => a * Math.PI / 180;
-    const x1 = cx + r * Math.cos(toRad(startAngle));
-    const y1 = cy + r * Math.sin(toRad(startAngle));
-    const x2 = cx + r * Math.cos(toRad(deg));
-    const y2 = cy + r * Math.sin(toRad(deg));
-    const large = sweep * pct / 100 > 180 ? 1 : 0;
-    const bx1 = cx + r * Math.cos(toRad(startAngle));
-    const by1 = cy + r * Math.sin(toRad(startAngle));
-    const bDeg = startAngle + sweep;
-    const bx2 = cx + r * Math.cos(toRad(bDeg));
-    const by2 = cy + r * Math.sin(toRad(bDeg));
-    return `<svg viewBox="0 0 130 90" width="130" height="90" style="display:block;margin:0 auto 4px">
-      <path d="M${bx1},${by1} A${r},${r} 0 1 1 ${bx2},${by2}" fill="none" stroke="#e8d9b5" stroke-width="10" stroke-linecap="round"/>
-      ${pct > 0 ? `<path d="M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round"/>` : ''}
-      <text x="${cx}" y="${cy+4}" text-anchor="middle" font-family="Cinzel,serif" font-size="18" font-weight="700" fill="${color}">${pct}%</text>
-    </svg>`;
-  }
-
-  const metricCards = `
-  <div class="metrics-row">
-    ${confidence !== null ? `
-    <div class="metric-card metric-card--gauge">
-      <p class="metric-label">Authenticity Confidence</p>
-      ${arcGauge(confidence, confColor)}
-      <p class="metric-verdict" style="color:${confColor}">${confLabel}</p>
-    </div>` : ''}
-    ${grade ? `
-    <div class="metric-card">
-      <p class="metric-label">Condition Grade</p>
-      <p class="metric-value metric-value--grade" style="color:${gc}">${grade}</p>
-      <div class="metric-bar-track"><div class="metric-bar-fill" style="width:${gradeWidth[grade]||70}%;background:${gc};"></div></div>
-      <p class="metric-grade-desc">${
-        grade.startsWith('A') ? 'Excellent condition' :
-        grade.startsWith('B') ? 'Good condition' :
-        grade.startsWith('C') ? 'Fair condition' : 'Poor condition'
-      }</p>
-    </div>` : ''}
-    ${valuation ? `
-    <div class="metric-card metric-card--valuation">
-      <p class="metric-label">Estimated Valuation</p>
-      <p class="metric-value metric-value--gold">${valuation}</p>
-    </div>` : ''}
-  </div>`;
-
+  // ── Build sections HTML ──────────────────────────────────────────
   const sectionsHtml = sections.map(s => {
+    const rawTitle = s.title.replace(/^\d+\.\s*/, '').toUpperCase();
     const contentLines = s.lines.filter(l => l);
     if (!contentLines.length) return '';
-    const isComps = /comparable|auction|sale|sold/i.test(s.title);
-    const isCondition = /condition/i.test(s.title);
 
-    let tableRows = [];
-    let nonTableLines = [];
-    for (const line of contentLines) {
-      const cells = line.split(/\s+[\|·—]\s+/);
-      if (cells.length >= 2 && isComps) tableRows.push(cells);
-      else nonTableLines.push(line);
+    const isAuth = /AUTHENTICITY/i.test(s.title);
+    const isCond = /CONDITION/i.test(s.title);
+    const isComp = /COMPARABLE|SALES/i.test(s.title);
+    const isVal  = /VALUATION/i.test(s.title);
+    const isRec  = /RECOMMENDATION/i.test(s.title);
+    const isRed  = /RED FLAG/i.test(s.title);
+
+    // ── AUTHENTICITY: verdict box ──
+    if (isAuth) {
+      const bodyLines = contentLines
+        .filter(l => !l.match(/Authenticity\s+Confidence[:\s]+\d+/i))
+        .map(l => l.replace(/\*\*/g, ''));
+      return `
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    <div class="verdict ${confVerdictClass}">
+      <div class="verdict-header">
+        <span class="badge ${confBadgeClass}">${confBadgeText}</span>
+      </div>
+      <p class="verdict-text">${bodyLines.join(' ')}</p>
+    </div>
+  </div>`;
     }
 
-    let bodyHtml = '';
-    if (tableRows.length >= 2) {
-      const [header, ...rows] = tableRows;
-      bodyHtml = `<div class="comp-table-wrap"><table class="comp-table">
-        <thead><tr>${header.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-        <tbody>${rows.map((r,i)=>`<tr class="${i%2===0?'row-even':'row-odd'}">${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
-      </table></div>`;
-    }
-
-    // Comparables fallback — split into sale entries (have price/date) and narrative
-    if (isComps && tableRows.length < 2) {
-      const saleLines = [];
-      const narrativeOnlyLines = [];
+    // ── CONDITION: grade box + bars ──
+    if (isCond) {
+      // Extract per-component grades
+      const gradeBarLines = [];
+      const otherLines = [];
       for (const l of contentLines) {
-        // Strip "First comparable:", "Second comparable:", "Comparable 1:", "1." etc.
+        const compMatch = l.match(/^(.{4,40}):\s+Grade\s+([A-D][+-]?)\s*[.–-]\s*(.+)/i)
+          || l.match(/^(.{4,40}):\s+Grade\s+([A-D][+-]?)/i);
+        const scoreMatch = l.match(/^(.{4,40}):\s+([\d.]+)\s*\/\s*10/i);
+        if (compMatch) {
+          const [,name,,desc] = compMatch;
+          const g = compMatch[2];
+          gradeBarLines.push({ name: name.trim(), grade: g, desc: (desc||'').trim(), pct: gradeWidths[g]||60, color: gradeColors[g]||'#c9922a' });
+        } else if (scoreMatch) {
+          const [,name,score] = scoreMatch;
+          const pct = Math.round(parseFloat(score) * 10);
+          const color = pct >= 75 ? '#639922' : pct >= 50 ? '#c9922a' : '#8b2020';
+          gradeBarLines.push({ name: name.trim(), score: `${score} / 10`, pct, color });
+        } else if (!l.match(/Overall\s+Grade/i)) {
+          otherLines.push(l.replace(/\*\*/g,''));
+        }
+      }
+
+      const barsHtml = gradeBarLines.map(b => `
+      <div class="grade-row">
+        <span class="grade-name">${b.name}</span>
+        <div class="grade-track"><div class="grade-fill" style="width:${b.pct}%;background:${b.color};"></div></div>
+        <span class="grade-score">${b.score || (b.grade + (b.desc ? ' — ' + b.desc : ''))}</span>
+      </div>`).join('');
+
+      const notesHtml = otherLines.length
+        ? `<div class="grade-notes">${otherLines.join(' ')}</div>` : '';
+
+      return `
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    <div class="overall-grade-row">
+      <div class="grade-letter-box" style="background:${gc}15;border-color:${gc}55;">
+        <span class="grade-letter" style="color:${gc};">${grade ? grade.replace(/[+-]/,'') : '—'}</span>
+        ${grade && grade.match(/[+-]/) ? `<span class="grade-sub" style="color:${gc};">${grade.slice(-1)}</span>` : ''}
+      </div>
+      <div class="grade-desc">
+        <strong>${gd}</strong>
+        <span>${gd}</span>
+      </div>
+    </div>
+    ${barsHtml ? `<div class="grade-bars">${barsHtml}</div>` : ''}
+    ${notesHtml}
+  </div>`;
+    }
+
+    // ── COMPARABLE SALES: table ──
+    if (isComp) {
+      const saleLines = [];
+      const introLines = [];
+      for (const l of contentLines) {
         const clean = l
-          .replace(/^(First|Second|Third|Fourth|Fifth|Sixth)\s+comparable[:.\s]*/i, '')
-          .replace(/^Comparable\s+\d+[:.\s]*/i, '')
-          .replace(/^\d+\.\s*/, '')
-          .replace(/\*\*/g, '').trim();
-        if (!clean) continue;
-        // Sale entry = has a currency symbol or a 4-digit year
+          .replace(/^(First|Second|Third|Fourth|Fifth|Sixth)\s+comparable[:.]\s*/i,'')
+          .replace(/^Comparable\s+\d+[:.]\s*/i,'')
+          .replace(/^[\d]+\.\s*/,'')
+          .replace(/\*\*/g,'').trim();
         if (clean.match(/[£€$]/) || clean.match(/\b(19|20)\d{2}\b/)) {
           saleLines.push(clean);
-        } else {
-          narrativeOnlyLines.push(clean);
+        } else if (clean.length > 15) {
+          introLines.push(clean);
         }
       }
-      if (saleLines.length) {
-        bodyHtml = `<div class="comp-table-wrap"><table class="comp-table"><thead><tr><th>Comparable sale</th></tr></thead><tbody>${
-          saleLines.map((l, i) => `<tr class="${i%2===0?'row-even':'row-odd'}"><td>${l}</td></tr>`).join('')
-        }</tbody></table></div>`;
-        // Only pass truly narrative lines (intro/summary text) to paragraph renderer
-        nonTableLines = narrativeOnlyLines;
-      } else {
-        // No recognisable sale entries — render everything as paragraphs, no table
-        nonTableLines = contentLines;
-      }
+
+      const tableRows = saleLines.map((l, i) => {
+        // Try to extract price for display
+        const priceMatch = l.match(/([£€$][\d,]+)/);
+        const price = priceMatch ? priceMatch[1] : '';
+        const desc = l.replace(/([£€$][\d,]+)/g,'').replace(/\s+/g,' ').trim();
+        return `<tr>
+          <td>${desc}</td>
+          <td class="price">${price}</td>
+        </tr>`;
+      }).join('');
+
+      const introHtml = introLines.map(l => `<p class="verdict-text" style="margin-bottom:10px;">${l}</p>`).join('');
+
+      return `
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    ${introHtml}
+    ${tableRows ? `<table class="comp-table">
+      <thead><tr><th>Comparable sale</th><th>Price</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>` : ''}
+  </div>`;
     }
 
-    const paraHtml = nonTableLines.map(line => {
-      const clean = line.replace(/^\*\s+/, '').replace(/^-\s+/, '').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      if (line.match(/^[\*-]\s/)) return `<li>${clean}</li>`;
-      // Grade rows in condition section
-      if (isCondition) {
-        const g = (line.match(/Grade ([A-D][+-]?)/) || [])[1];
-        if (g && gradeWidths[g]) {
-          return `<div class="grade-row"><span class="grade-label">${clean}</span><div class="grade-track"><div class="grade-fill" style="width:${gradeWidths[g]}%;background:${gradeColors[g]||'#c9922a'};"></div></div></div>`;
-        }
-      }
-      return `<p>${clean}</p>`;
-    });
-    const wrapped = paraHtml.join('\n').replace(/((?:<li>[\s\S]*?<\/li>\n?)+)/g, '<ul>$1</ul>');
+    // ── VALUATION: dark split box ──
+    if (isVal) {
+      const bodyLines = contentLines
+        .filter(l => !l.match(/Fair\s+Market\s+Value/i) && !l.match(/fair\s+open\s+market/i))
+        .map(l => l.replace(/\*\*/g,''));
+      return `
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    <div class="val-box">
+      <div class="val-left">
+        <div class="val-label">3scouts fair value estimate</div>
+        <div class="val-range-big">${valuation || '—'}</div>
+        <div class="val-sub">Based on photographs and comparable sales</div>
+      </div>
+      <div class="val-right">
+        <h3>Assessment</h3>
+        <p>${bodyLines.join(' ')}</p>
+      </div>
+    </div>
+  </div>`;
+    }
+
+    // ── RECOMMENDATION: verdict box ──
+    if (isRec) {
+      const body = contentLines.map(l => l.replace(/\*\*/g,'')).join(' ');
+      return `
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    <div class="verdict verdict-pass" style="background:var(--green-pale);border-left-color:var(--green);">
+      <p class="verdict-text">${body}</p>
+    </div>
+  </div>`;
+    }
+
+    // ── RED FLAGS: warning box ──
+    if (isRed) {
+      const body = contentLines.map(l => l.replace(/\*\*/g,'')).join(' ');
+      return `
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    <div class="verdict verdict-warn">
+      <div class="verdict-header"><span class="badge badge-warn">⚠ Points to verify</span></div>
+      <p class="verdict-text">${body}</p>
+    </div>
+  </div>`;
+    }
+
+    // ── DEFAULT: plain prov-box ──
+    const body = contentLines.map(l => {
+      const cl = l.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/^[-*]\s/,'');
+      if (l.match(/^[-*]\s/)) return `<li style="margin-left:1.2rem;margin-bottom:4px;">${cl}</li>`;
+      return `<p class="prov-text">${cl}</p>`;
+    }).join('');
 
     return `
-    <div class="report-section">
-      <div class="section-header"><h3>${s.title.replace(/^\d+\.\s+/,'')}</h3></div>
-      <div class="section-body">
-        ${wrapped}
-        ${bodyHtml}
-      </div>
-    </div>`;
+  <div class="rpt-section">
+    <h2>${rawTitle}</h2>
+    <div class="prov-box">${body}</div>
+  </div>`;
+
   }).join('');
 
+  // ── Assemble full page ───────────────────────────────────────────
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -808,108 +873,100 @@ function generateReportPage(report, images, isEbay, dateStr) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3scouts Report — ${report.listing_title}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --parchment:#f5edd6; --parchment-dk:#e8d9b5; --ink:#2c1f0e; --ink-lt:#5a3e20;
-    --sepia:#8b6344; --sepia-lt:#b8945a; --gold:#c9922a; --gold-lt:#e8b84b;
-    --white:#fffdf7; --shadow:rgba(44,31,14,0.15);
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --parchment:#f5edd6;--parchment-dk:#e8d9b5;--ink:#2c1f0e;--ink-lt:#5a3e20;
+    --sepia:#8b6344;--sepia-lt:#b8945a;--gold:#c9922a;--gold-lt:#e8b84b;
+    --red:#8b2020;--red-lt:#f7c1c1;--red-pale:#fcebeb;
+    --green:#1a4a2e;--green-lt:#c0dd97;--green-pale:#eaf3de;
+    --amber-lt:#fac775;--amber-pale:#faeeda;--blue-lt:#b5d4f4;--blue-pale:#e6f1fb;
+    --white:#fffdf7;--shadow:rgba(44,31,14,0.15);
   }
-  html { scroll-behavior: smooth; }
-  body {
-    background-color: var(--parchment);
-    background-image: radial-gradient(ellipse at 20% 20%, rgba(139,99,68,0.07) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 80%, rgba(139,99,68,0.05) 0%, transparent 60%);
-    color: var(--ink); font-family: 'EB Garamond', Georgia, serif;
-    font-size: 17px; line-height: 1.75;
-  }
-  nav { position:sticky;top:0;z-index:100;background:var(--ink);border-bottom:2px solid var(--gold);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between; }
-  .nav-brand { display:inline-flex;align-items:center;gap:10px;text-decoration:none; }
-  .nav-dots { display:flex;gap:4px; }
-  .nav-dots span { width:8px;height:8px;border-radius:50%;display:block; }
-  .nav-logo { font-family:'Cinzel',serif;font-size:1.1rem;font-weight:600;color:var(--gold-lt);letter-spacing:0.06em; }
-  .nav-logo em { color:var(--sepia-lt);font-style:normal;font-weight:400; }
-  .nav-btns { display:flex;gap:8px; }
-  .btn-nav { background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:'EB Garamond',serif;font-size:13px;letter-spacing:0.5px;padding:6px 14px;border-radius:3px;cursor:pointer;transition:background 0.2s,color 0.2s; }
-  .btn-nav:hover { background:var(--gold);color:var(--ink); }
-  .btn-nav--print { border-color:var(--sepia-lt);color:var(--sepia-lt); }
-  .btn-nav--print:hover { background:var(--sepia-lt);color:var(--ink); }
-  .report-header { background:var(--ink);background-image:linear-gradient(135deg,#1a0e05 0%,#2c1f0e 60%,#1a0e05 100%);border-bottom:3px solid var(--gold);padding:2.5rem 2.5rem 2rem; }
-  .report-tag { font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:0.6rem; }
-  .report-title { font-family:'Cinzel',serif;font-size:clamp(1.2rem,3vw,1.9rem);font-weight:600;color:var(--gold-lt);line-height:1.3;margin-bottom:1rem; }
-  .report-meta { display:flex;flex-wrap:wrap;gap:0.4rem 1.5rem;font-family:'EB Garamond',serif;font-size:14px;color:rgba(255,253,247,0.65); }
-  .report-meta a { color:var(--gold);text-decoration:none; }
-  .report-meta a:hover { text-decoration:underline; }
-  .container { max-width:860px;margin:0 auto;padding:2rem 2rem 3rem; }
-  .photo-section { margin-bottom:2rem; }
-  .photo-section-label { font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--sepia);margin-bottom:0.75rem;padding-bottom:0.4rem;border-bottom:1px solid var(--parchment-dk); }
-  .photo-grid { display:flex;flex-wrap:wrap;gap:12px; }
-  .photo-item { border:2px solid var(--parchment-dk);border-radius:4px;overflow:hidden;box-shadow:0 3px 12px var(--shadow);background:var(--white);flex-shrink:0; }
-  .photo-item img { display:block;width:200px;height:165px;object-fit:cover; }
-  .metrics-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem; }
-  .metric-card { background:var(--white);border:1px solid var(--parchment-dk);border-top:3px solid var(--gold);border-radius:4px;padding:1rem 1.25rem 1.1rem;box-shadow:0 2px 8px var(--shadow); }
-  .metric-card--valuation { background:var(--ink);border-color:var(--gold); }
-  .metric-label { font-family:'Cinzel',serif;font-size:9.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--sepia);margin-bottom:0.4rem; }
-  .metric-card--valuation .metric-label { color:var(--gold);opacity:0.75; }
-  .metric-value { font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--ink);line-height:1; }
-  .metric-value--gold { color:var(--gold-lt); }
-  .metric-value--grade { font-size:2rem; }
-  .metric-verdict { font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;text-align:center;margin-top:2px; }
-  .metric-grade-desc { font-size:13px;color:var(--sepia);margin-top:6px;text-align:center; }
-  .metric-card--gauge { text-align:center; }
-  .metric-bar-track { height:5px;background:var(--parchment-dk);border-radius:3px;margin-top:0.65rem;overflow:hidden; }
-  .metric-bar-fill { height:100%;border-radius:3px; }
-  .section-divider { text-align:center;margin:2rem 0 1.5rem;font-size:1.1rem;color:var(--gold);letter-spacing:4px;opacity:0.5; }
-  .report-section { margin-bottom:1.75rem; }
-  .section-header { background:var(--ink);border-left:4px solid var(--gold);padding:0.55rem 1rem;margin-bottom:0; }
-  .section-header h3 { font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:0; }
-  .section-body { background:var(--white);border:1px solid var(--parchment-dk);border-top:none;border-radius:0 0 3px 3px;padding:1.1rem 1.4rem;box-shadow:0 1px 5px var(--shadow);overflow-wrap:break-word;word-wrap:break-word;overflow-x:hidden; }
-  .section-body p { margin-bottom:0.75rem;color:var(--ink);font-size:16px;line-height:1.8; }
-  .section-body p:last-child { margin-bottom:0; }
-  .section-body strong { font-weight:600; }
-  .section-body ul { margin:0.5rem 0 0.75rem 1.2rem; }
-  .section-body li { font-size:16px;line-height:1.75;color:var(--ink);margin-bottom:0.3rem; }
-  .section-body li::marker { color:var(--gold); }
-  .grade-row { display:flex;align-items:center;gap:12px;margin-bottom:10px; }
-  .grade-label { font-size:15px;color:var(--ink);min-width:200px;flex-shrink:0; }
-  .grade-track { flex:1;background:var(--parchment-dk);border-radius:3px;height:5px;overflow:hidden; }
-  .grade-fill { height:100%;border-radius:3px; }
-  .comp-table-wrap { overflow-x:auto;margin-top:0.5rem; }
-  .comp-table { width:100%;border-collapse:collapse; }
-  .comp-table thead th { background:var(--gold);color:var(--ink);font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;text-align:left; }
-  .comp-table tbody td { padding:9px 12px;font-size:15px;color:var(--ink);line-height:1.6;border-bottom:1px solid var(--parchment-dk); }
-  .row-even { background:var(--white); }
-  .row-odd { background:var(--parchment); }
-  .report-footer { background:var(--ink);border-top:2px solid var(--gold);padding:1.5rem 2.5rem;margin-top:3rem;text-align:center; }
-  .report-footer p { font-size:12px;color:rgba(255,253,247,0.5);line-height:1.8; }
-  .report-footer a { color:var(--gold);text-decoration:none; }
-  .footer-logo { font-family:'Cinzel',serif;font-size:0.9rem;color:var(--gold-lt);margin-bottom:0.5rem;display:block;letter-spacing:0.1em; }
-  @media print {
-    nav { display:none; }
-    .report-header,.section-header,.metric-card--valuation,.report-footer { -webkit-print-color-adjust:exact;print-color-adjust:exact; }
-    body { font-size:14px; }
-  }
-  @media (max-width:600px) {
-    .photo-item img { width:140px;height:115px; }
-    .metrics-row { grid-template-columns:1fr 1fr; }
-    nav { padding:0 1rem; }
-    .container { padding:1.25rem 1rem 2rem; }
-    .report-header { padding:1.5rem 1rem 1.25rem; }
-    .grade-label { min-width:140px;font-size:13px; }
-  }
+  html{scroll-behavior:smooth;}
+  body{background-color:var(--parchment);background-image:radial-gradient(ellipse at 20% 20%,rgba(139,99,68,0.07) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(139,99,68,0.05) 0%,transparent 60%);color:var(--ink);font-family:'EB Garamond',Georgia,serif;font-size:17px;line-height:1.7;}
+  nav{position:sticky;top:0;z-index:100;background:var(--ink);border-bottom:2px solid var(--gold);padding:0 2.5rem;height:56px;display:flex;align-items:center;justify-content:space-between;}
+  .nav-logo{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold-lt);text-decoration:none;letter-spacing:0.04em;display:inline-flex;align-items:center;gap:10px;}
+  .nav-btns{display:flex;gap:8px;}
+  .btn-nav{background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:'EB Garamond',serif;font-size:13px;padding:6px 14px;border-radius:3px;cursor:pointer;transition:background .2s,color .2s;}
+  .btn-nav:hover{background:var(--gold);color:var(--ink);}
+  .btn-nav--print{border-color:var(--sepia-lt);color:var(--sepia-lt);}
+  .btn-nav--print:hover{background:var(--sepia-lt);color:var(--ink);}
+  .report-header{background:var(--ink);background-image:linear-gradient(160deg,#1a0e05 0%,#2c1f0e 60%,#1a0e05 100%);border-bottom:2px solid var(--gold);padding:2.5rem 2rem 2rem;}
+  .report-header h1{font-family:'Cinzel',serif;font-size:clamp(1.2rem,3vw,1.8rem);font-weight:700;color:var(--white);margin-bottom:0.4rem;letter-spacing:0.01em;line-height:1.3;}
+  .report-subtitle{font-size:13.5px;color:rgba(255,255,255,0.55);line-height:1.6;}
+  .report-subtitle span{color:rgba(255,255,255,0.3);margin:0 7px;}
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:1.5rem;}
+  .summary-card{background:rgba(255,255,255,0.06);border:1px solid rgba(201,146,42,0.2);border-radius:3px;padding:14px 16px;}
+  .summary-label{font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+  .summary-value{font-size:14px;font-weight:500;color:var(--white);}
+  .summary-sub{font-size:12px;color:rgba(255,255,255,0.5);margin-top:3px;line-height:1.4;}
+  .price-big{font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--gold-lt);}
+  .container{max-width:860px;margin:0 auto;padding:0 2rem;}
+  .rpt-section{padding:1.75rem 0;border-bottom:1px solid var(--parchment-dk);}
+  .rpt-section:last-of-type{border-bottom:none;}
+  .rpt-section h2{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;}
+  .verdict{border-radius:3px;padding:18px 20px;margin-bottom:12px;overflow-wrap:break-word;}
+  .verdict-pass{background:var(--green-pale);border:1px solid var(--green-lt);border-left:4px solid var(--green);}
+  .verdict-warn{background:var(--amber-pale);border:1px solid var(--amber-lt);border-left:4px solid var(--gold);}
+  .verdict-fail{background:var(--red-pale);border:1px solid var(--red-lt);border-left:4px solid var(--red);}
+  .verdict-header{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap;}
+  .badge{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 12px;border-radius:2px;}
+  .badge-pass{background:var(--green-lt);color:#1a3a08;}
+  .badge-warn{background:var(--amber-lt);color:#412402;}
+  .badge-fail{background:var(--red-lt);color:#501313;}
+  .verdict-text{font-size:15px;color:var(--ink-lt);line-height:1.8;overflow-wrap:break-word;}
+  .photo-section{padding:1.5rem 0;border-bottom:1px solid var(--parchment-dk);}
+  .photo-label{font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--sepia);margin-bottom:0.75rem;}
+  .photo-grid{display:flex;flex-wrap:wrap;gap:12px;}
+  .overall-grade-row{display:flex;align-items:flex-start;gap:16px;margin-bottom:1.5rem;flex-wrap:wrap;}
+  .grade-letter-box{width:64px;height:64px;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+  .grade-letter{font-family:'Cinzel',serif;font-size:1.9rem;font-weight:700;line-height:1;}
+  .grade-sub{font-size:0.8rem;font-weight:600;}
+  .grade-desc strong{font-size:15px;font-weight:600;color:var(--ink);display:block;margin-bottom:3px;}
+  .grade-desc span{font-size:13.5px;color:var(--sepia);}
+  .grade-bars{margin-bottom:1.25rem;}
+  .grade-row{display:flex;align-items:center;gap:12px;margin-bottom:11px;}
+  .grade-name{font-size:13.5px;color:var(--ink-lt);min-width:160px;flex-shrink:0;}
+  .grade-track{flex:1;height:5px;background:var(--parchment-dk);border-radius:3px;overflow:hidden;}
+  .grade-fill{height:100%;border-radius:3px;}
+  .grade-score{font-size:13px;font-weight:600;min-width:160px;text-align:right;color:var(--ink);font-family:'Cinzel',serif;overflow-wrap:break-word;}
+  .grade-notes{background:var(--white);border:1px solid var(--parchment-dk);border-radius:3px;padding:14px 16px;font-size:14.5px;color:var(--ink-lt);line-height:1.8;font-style:italic;overflow-wrap:break-word;}
+  .prov-box{background:var(--white);border:1px solid var(--parchment-dk);border-radius:3px;padding:16px 18px;margin-bottom:10px;overflow-wrap:break-word;}
+  .prov-label{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+  .prov-text{font-size:14.5px;color:var(--ink-lt);line-height:1.75;overflow-wrap:break-word;}
+  .comp-table{width:100%;border-collapse:collapse;font-size:14px;}
+  .comp-table th{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--sepia);text-align:left;padding:6px 8px 10px;border-bottom:1px solid var(--sepia-lt);}
+  .comp-table td{padding:10px 8px;border-bottom:1px solid var(--parchment-dk);color:var(--ink-lt);vertical-align:top;line-height:1.5;overflow-wrap:break-word;}
+  .comp-table td.price{font-family:'Cinzel',serif;font-weight:700;color:var(--ink);white-space:nowrap;}
+  .val-box{background:var(--ink);background-image:linear-gradient(135deg,#1a0e05 0%,#2c1f0e 100%);border:1px solid var(--gold);border-radius:3px;padding:24px 26px;display:flex;align-items:flex-start;gap:2.5rem;flex-wrap:wrap;}
+  .val-left{flex-shrink:0;}
+  .val-label{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+  .val-range-big{font-family:'Cinzel',serif;font-size:2.1rem;font-weight:700;color:var(--gold-lt);line-height:1;margin-bottom:7px;}
+  .val-sub{font-size:13px;color:rgba(255,255,255,0.5);}
+  .val-right{flex:1;min-width:220px;}
+  .val-right h3{font-family:'Cinzel',serif;font-size:0.85rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--gold);margin-bottom:9px;}
+  .val-right p{font-size:14.5px;color:rgba(255,255,255,0.75);line-height:1.75;overflow-wrap:break-word;}
+  .footnote{padding:1.5rem 0 2.5rem;font-size:12.5px;color:var(--sepia);line-height:1.75;}
+  footer{background:#1a0e05;border-top:2px solid var(--gold);padding:2rem 2.5rem;}
+  .footer-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
+  .footer-logo{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-lt);text-decoration:none;}
+  .footer-right{font-size:12px;color:rgba(255,255,255,0.35);}
+  @media print{nav{display:none;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
+  @media(max-width:600px){nav{padding:0 1.25rem;}.container{padding:0 1.25rem;}.val-box{flex-direction:column;gap:1.5rem;}.report-header{padding:2rem 1.25rem 1.5rem;}.grade-name{min-width:110px;}.grade-score{min-width:100px;font-size:11px;}}
 </style>
 </head>
 <body>
 
 <nav>
-  <a href="/" class="nav-brand">
-    <div class="nav-dots">
-      <span style="background:var(--gold);"></span>
-      <span style="background:var(--gold-lt);"></span>
-      <span style="background:var(--gold);opacity:0.5;"></span>
+  <a href="/" class="nav-logo">
+    <div style="display:flex;align-items:center;gap:4px;">
+      <span style="display:block;width:9px;height:9px;border-radius:50%;background:#c9922a;"></span>
+      <span style="display:block;width:9px;height:9px;border-radius:50%;background:#e8b84b;"></span>
+      <span style="display:block;width:9px;height:9px;border-radius:50%;background:#c9922a;opacity:0.5;"></span>
     </div>
-    <span class="nav-logo">3scouts<em>.com</em></span>
+    3scouts<span style="font-size:0.72rem;color:#c9922a;letter-spacing:0.06em;">.com</span>
   </a>
   <div class="nav-btns">
     <button class="btn-nav btn-nav--print" onclick="window.print()">🖨 Print</button>
@@ -918,53 +975,86 @@ function generateReportPage(report, images, isEbay, dateStr) {
 </nav>
 
 <div class="report-header">
-  <p class="report-tag">3scouts · ${isEbay ? 'Deep Analysis Report' : 'Valuation Report'}</p>
-  <h1 class="report-title">${report.listing_title}</h1>
-  <div class="report-meta">
-    <span>${dateStr}</span>
-    ${isEbay && report.listing_price ? `<span>Listed at <strong>${report.listing_price}</strong></span>` : ''}
-    ${isEbay && report.listing_url ? `<span><a href="${report.listing_url}" target="_blank">View on eBay →</a></span>` : ''}
+  <div class="container">
+    <h1>${report.listing_title}</h1>
+    <p class="report-subtitle">
+      ${isEbay ? `eBay listing` : `Submitted by subscriber`}
+      <span>·</span>
+      ${isEbay ? 'Deep Analysis Report' : 'Valuation Report'}
+      <span>·</span>
+      ${dateStr}
+      ${isEbay && report.listing_price ? `<span>·</span> Listed at ${report.listing_price}` : ''}
+    </p>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">${isEbay ? 'Item identified' : 'Item submitted'}</div>
+        <div class="summary-value">${report.listing_title}</div>
+        ${isEbay && report.listing_url ? `<div class="summary-sub"><a href="${report.listing_url}" target="_blank" style="color:var(--gold);">View on eBay →</a></div>` : ''}
+      </div>
+      ${isEbay && report.listing_price ? `
+      <div class="summary-card">
+        <div class="summary-label">Asking price</div>
+        <div class="price-big">${report.listing_price}</div>
+      </div>` : ''}
+      <div class="summary-card">
+        <div class="summary-label">${confidence !== null ? 'Authenticity' : 'Report date'}</div>
+        ${confidence !== null ? `
+        <div class="summary-value" style="color:${confColor};">${confidence}% confidence</div>
+        <div class="summary-sub">${confidence >= 80 ? 'Strong indicators of authenticity' : confidence >= 60 ? 'Probable — some uncertainty' : 'Significant uncertainty — verify carefully'}</div>
+        ` : `<div class="summary-value" style="color:rgba(255,255,255,0.7);">${dateStr}</div>`}
+      </div>
+      ${valuation ? `
+      <div class="summary-card">
+        <div class="summary-label">Estimated value</div>
+        <div class="price-big" style="font-size:1.3rem;">${valuation}</div>
+      </div>` : ''}
+    </div>
   </div>
 </div>
 
-<div class="container">
+<div style="padding:2rem 0 0;" class="container">
 
   ${images.length ? `<div class="photo-section">
-    <p class="photo-section-label">${isEbay ? 'Listing photos' : 'Submitted photos'}</p>
+    <p class="photo-label">${isEbay ? 'Listing photos' : 'Submitted photos'}</p>
     <div class="photo-grid">${photoGrid}</div>
   </div>` : ''}
 
-  ${metricCards}
-
-  <div class="section-divider">◈ &nbsp; ◈ &nbsp; ◈</div>
-
   ${sectionsHtml}
 
+  <p class="footnote">
+    Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing decisions made on the basis of this report. &nbsp;·&nbsp; Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:var(--gold);">3scouts.com</a>
+  </p>
+
 </div>
 
-<div class="report-footer">
-  <span class="footer-logo">3scouts.com</span>
-  <p>Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing decisions made on the basis of this report.</p>
-  <p style="margin-top:0.5rem;">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com">3scouts.com</a> &nbsp;·&nbsp; <a href="mailto:alan@3scouts.com">alan@3scouts.com</a></p>
-</div>
+<footer>
+  <div class="footer-inner">
+    <a href="/" class="footer-logo" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="display:block;width:8px;height:8px;border-radius:50%;background:#c9922a;"></span>
+        <span style="display:block;width:8px;height:8px;border-radius:50%;background:#e8b84b;"></span>
+        <span style="display:block;width:8px;height:8px;border-radius:50%;background:#c9922a;opacity:0.5;"></span>
+      </div>
+      <span style="font-family:Cinzel,serif;font-size:1.05rem;font-weight:700;color:#e8b84b;">3scouts<span style="font-size:0.7rem;color:#c9922a;">.com</span></span>
+    </a>
+    <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="/privacy-policy.html" style="color:rgba(255,255,255,0.4);">Privacy Policy</a> &nbsp;·&nbsp; <a href="/terms.html" style="color:rgba(255,255,255,0.4);">Terms</a></div>
+  </div>
+</footer>
 
 <script>
-function savePDF() {
-  const s = document.createElement('style');
-  s.id = 'pdf-page-style';
-  s.textContent = '@page { size: A4; margin: 10mm 12mm; }';
+function savePDF(){
+  const s=document.createElement('style');s.id='pdf-page-style';
+  s.textContent='@page{size:A4;margin:10mm 12mm;}';
   document.head.appendChild(s);
-  const t = document.title;
-  document.title = '3scouts-report';
-  window.print();
-  document.title = t;
-  document.head.removeChild(s);
+  const t=document.title;document.title='3scouts-report';
+  window.print();document.title=t;document.head.removeChild(s);
 }
 </script>
-
 </body>
 </html>`;
 }
+
+
 
 app.get('/report/:token', async (req, res) => {
   const { token } = req.params;
