@@ -997,11 +997,9 @@ function generateReportPage(report, images, isEbay, dateStr) {
         <div class="price-big">${report.listing_price}</div>
       </div>` : ''}
       <div class="summary-card">
-        <div class="summary-label">${confidence !== null ? 'Authenticity' : 'Report date'}</div>
-        ${confidence !== null ? `
-        <div class="summary-value" style="color:${confColor};">${confidence}% confidence</div>
-        <div class="summary-sub">${confidence >= 80 ? 'Strong indicators of authenticity' : confidence >= 60 ? 'Probable — some uncertainty' : 'Significant uncertainty — verify carefully'}</div>
-        ` : `<div class="summary-value" style="color:rgba(255,255,255,0.7);">${dateStr}</div>`}
+        <div class="summary-label">Authenticity</div>
+        <div style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:${confColor};line-height:1;margin-bottom:6px;">${confidence !== null ? confidence + '%' : '—'}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;">${confidence !== null ? (confidence >= 80 ? '◈ Strong indicators of authenticity' : confidence >= 60 ? '⚠ Probable — some uncertainty' : '✕ Significant uncertainty') : dateStr}</div>
       </div>
       ${valuation ? `
       <div class="summary-card">
