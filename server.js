@@ -615,7 +615,9 @@ app.get('/topup-success', async (req, res) => {
 
 // ── REPORT PAGE ───────────────────────────────────────────────────
 function generateReportPage(report, images, isEbay, dateStr) {
-  const analysisText = report.analysis_text || '';
+  const analysisText = (report.analysis_text || '')
+    .replace(/^End of Report[^\n]*/im, '')
+    .trim();
 
   const sections = [];
   let currentSection = null;
@@ -637,7 +639,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (currentSection) sections.push({ title: currentSection, lines: currentContent });
 
   let confidence = null;
-  const confMatch = analysisText.match(/(\d+)%.*confidence|confidence.*?(\d+)%/i);
+  const confMatch = analysisText.match(/(\d+)\s*(?:%|percent)[^\n]{0,40}confidence|confidence[^\n]{0,40}(\d+)\s*(?:%|percent)/i);
   if (confMatch) confidence = parseInt(confMatch[1] || confMatch[2]);
 
   let grade = null;
@@ -645,7 +647,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (gradeMatch) grade = gradeMatch[1].toUpperCase();
 
   let valuation = null;
-  const valMatch = analysisText.match(/(?:Fair Market Value|Insurance.*Value|Valuation|Estimated.*[Vv]alue)[^:]*:\s*([€£$\d,\s–\-to]+(?:\([^)]+\))?)/);
+  const valMatch = analysisText.match(/(?:Fair Market Value|Insurance.*?Value|fair open market value|estimate.*?value|value.*?at)[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i);
   if (valMatch) valuation = valMatch[1].trim();
 
   const gradeColour = {'A+':'#1a4a2e','A':'#1a4a2e','A-':'#2d6b44','B+':'#4a7a1a','B':'#c9922a','B-':'#c97a22','C+':'#8b4020','C':'#8b2020','C-':'#6b1515','D':'#4a0a0a'};
@@ -747,7 +749,12 @@ function generateReportPage(report, images, isEbay, dateStr) {
       const saleLines = [];
       const narrativeOnlyLines = [];
       for (const l of contentLines) {
-        const clean = l.replace(/^Comparable\s+\d+[:.\s]*/i, '').replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim();
+        // Strip "First comparable:", "Second comparable:", "Comparable 1:", "1." etc.
+        const clean = l
+          .replace(/^(First|Second|Third|Fourth|Fifth|Sixth)\s+comparable[:.\s]*/i, '')
+          .replace(/^Comparable\s+\d+[:.\s]*/i, '')
+          .replace(/^\d+\.\s*/, '')
+          .replace(/\*\*/g, '').trim();
         if (!clean) continue;
         // Sale entry = has a currency symbol or a 4-digit year
         if (clean.match(/[£€$]/) || clean.match(/\b(19|20)\d{2}\b/)) {
