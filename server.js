@@ -9,6 +9,7 @@ const {
   deactivateSubscriber,
   runDeepAnalysis,
   runDeepAnalysisFromDescription,
+  processFollowUpQueue,
 } = require('./scout-engine');
 
 const app = express();
@@ -42,6 +43,15 @@ scheduleTopOfHour();
 setTimeout(() => {
   runScouts().catch(err => console.error('Scout startup error:', err.message));
 }, 30000);
+
+// Process follow-up email queue every 10 minutes
+setInterval(() => {
+  processFollowUpQueue().catch(err => console.error('Follow-up queue error:', err.message));
+}, 10 * 60 * 1000);
+// Run once on startup
+setTimeout(() => {
+  processFollowUpQueue().catch(err => console.error('Follow-up startup error:', err.message));
+}, 20000);
 
 // ── EMAIL FUNCTIONS ───────────────────────────────────────────────
 
@@ -599,18 +609,15 @@ app.get('/topup-success', async (req, res) => {
 function generateReportPage(report, images, isEbay, dateStr) {
   const analysisText = report.analysis_text || '';
 
-  // Parse analysis into sections
   const sections = [];
   let currentSection = null;
   let currentContent = [];
-
   const lines = analysisText.split('\n').map(l => l.trim()).filter(l => l && l !== '---');
 
   for (const line of lines) {
     const clean = line.replace(/^#{1,3}\s+/, '');
     const sectionMatch = clean.match(/^(\d+)\.\s+(.+)/);
     const capsHeader = clean.match(/^([A-Z][A-Z\s\/&]+[A-Z])$/) && clean.length > 5 && !clean.match(/[a-z£€$]/);
-
     if (sectionMatch || capsHeader) {
       if (currentSection) sections.push({ title: currentSection, lines: currentContent });
       currentSection = sectionMatch ? sectionMatch[2].replace(/\*\*/g,'') : clean;
@@ -621,242 +628,302 @@ function generateReportPage(report, images, isEbay, dateStr) {
   }
   if (currentSection) sections.push({ title: currentSection, lines: currentContent });
 
-  // Detect confidence %
   let confidence = null;
   const confMatch = analysisText.match(/(\d+)%.*confidence|confidence.*?(\d+)%/i);
   if (confMatch) confidence = parseInt(confMatch[1] || confMatch[2]);
 
-  // Detect overall grade
   let grade = null;
   const gradeMatch = analysisText.match(/[Oo]verall\s+[Gg]rade[:\s]+([A-D][+-]?)/);
   if (gradeMatch) grade = gradeMatch[1].toUpperCase();
 
-  // Detect valuation
   let valuation = null;
   const valMatch = analysisText.match(/(?:Fair Market Value|Insurance.*Value|Valuation|Estimated.*[Vv]alue)[^:]*:\s*([€£$\d,\s–\-to]+(?:\([^)]+\))?)/);
   if (valMatch) valuation = valMatch[1].trim();
 
+  const gradeColour = {'A+':'#1a4a2e','A':'#1a4a2e','A-':'#2d6b44','B+':'#4a7a1a','B':'#c9922a','B-':'#c97a22','C+':'#8b4020','C':'#8b2020','C-':'#6b1515','D':'#4a0a0a'};
+  const gradeWidth  = {'A+':98,'A':93,'A-':88,'B+':80,'B':72,'B-':65,'C+':55,'C':45,'C-':35,'D':20};
   const gradeWidths = {'A+':100,'A':92,'A-':85,'B+':78,'B':70,'B-':62,'C+':54,'C':46,'C-':38,'D':25};
   const gradeColors = {'A+':'#1a6b2e','A':'#1a6b2e','A-':'#2d8a3e','B+':'#c9922a','B':'#c9922a','B-':'#d4882a','C+':'#8b4a1e','C':'#8b3010','C-':'#8b2020','D':'#6b1010'};
-  const confColor = confidence >= 75 ? '#1a6b2e' : confidence >= 50 ? '#c9922a' : '#8b2020';
+  const gc = gradeColour[grade] || '#c9922a';
+  const gw = gradeWidth[grade] || 70;
 
-  // Build sections HTML
-  const sectionsHtml = sections.map(sec => {
-    const isComparables = sec.title.match(/comparable|sales/i);
-    const isValuation = sec.title.match(/^valuation/i);
-    const isCondition = sec.title.match(/condition/i);
+  const photoGrid = images.map(img => `
+    <div class="photo-item">
+      <img src="${img}" alt="Item photo" loading="lazy" onerror="this.parentElement.style.display='none'">
+    </div>`).join('');
+
+  const metricCards = `
+  <div class="metrics-row">
+    ${confidence !== null ? `
+    <div class="metric-card">
+      <p class="metric-label">Authenticity Confidence</p>
+      <p class="metric-value">${confidence}%</p>
+      <div class="metric-bar-track"><div class="metric-bar-fill" style="width:${confidence}%;background:${confidence>=80?'#1a4a2e':confidence>=60?'#c9922a':'#8b2020'};"></div></div>
+    </div>` : ''}
+    ${grade ? `
+    <div class="metric-card">
+      <p class="metric-label">Condition Grade</p>
+      <p class="metric-value">${grade}</p>
+      <div class="metric-bar-track"><div class="metric-bar-fill" style="width:${gradeWidth[grade]||70}%;background:${gc};"></div></div>
+    </div>` : ''}
+    ${valuation ? `
+    <div class="metric-card metric-card--valuation">
+      <p class="metric-label">Estimated Valuation</p>
+      <p class="metric-value metric-value--gold">${valuation}</p>
+    </div>` : ''}
+  </div>`;
+
+  const sectionsHtml = sections.map(s => {
+    const contentLines = s.lines.filter(l => l);
+    if (!contentLines.length) return '';
+    const isComps = /comparable|auction|sale|sold/i.test(s.title);
+    const isCondition = /condition/i.test(s.title);
+
+    let tableRows = [];
+    let nonTableLines = [];
+    for (const line of contentLines) {
+      const cells = line.split(/\s+[\|·—]\s+/);
+      if (cells.length >= 2 && isComps) tableRows.push(cells);
+      else nonTableLines.push(line);
+    }
 
     let bodyHtml = '';
+    if (tableRows.length >= 2) {
+      const [header, ...rows] = tableRows;
+      bodyHtml = `<div class="comp-table-wrap"><table class="comp-table">
+        <thead><tr>${header.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map((r,i)=>`<tr class="${i%2===0?'row-even':'row-odd'}">${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>`;
+    }
 
-    if (isComparables) {
-      // Render as table
-      const rows = sec.lines.filter(l => l.match(/\d/) || l.match(/comparable/i)).map((l, i) => {
+    // Comparables fallback — numbered items in their own section
+    if (isComps && tableRows.length < 2) {
+      const compRows = contentLines.filter(l => l.match(/\d/) || l.length > 15).map((l, i) => {
         const clean = l.replace(/^Comparable\s+\d+:\s*/i,'').replace(/\*\*/g,'');
         return `<tr class="${i%2===0?'row-even':'row-odd'}"><td>${clean}</td></tr>`;
       }).join('');
-      bodyHtml = rows ? `<table class="comp-table"><thead><tr><th>Comparable sale</th></tr></thead><tbody>${rows}</tbody></table>` : '';
-      // Add narrative lines
-      const narrative = sec.lines.filter(l => !l.match(/^Comparable\s+\d+/i) && l.length > 20).map(l =>
-        `<p>${l.replace(/\*\*/g,'')}</p>`
-      ).join('');
-      bodyHtml = narrative + bodyHtml;
-    } else {
-      bodyHtml = sec.lines.map(l => {
-        l = l.replace(/\*\*/g,'');
-        if (l.match(/^[-•]\s/)) return `<li>${l.replace(/^[-•]\s/,'')}</li>`;
-        if (l.match(/Grade [A-D][+-]?/) && isCondition) {
-          const g = (l.match(/Grade ([A-D][+-]?)/) || [])[1];
-          return `<div class="grade-row"><span class="grade-label">${l}</span>${g && gradeWidths[g] ? `<div class="grade-track"><div class="grade-fill" style="width:${gradeWidths[g]}%;background:${gradeColors[g]||'#c9922a'};"></div></div>` : ''}</div>`;
-        }
-        return `<p>${l}</p>`;
-      }).join('');
+      if (compRows) {
+        bodyHtml = `<div class="comp-table-wrap"><table class="comp-table"><thead><tr><th>Comparable sale</th></tr></thead><tbody>${compRows}</tbody></table></div>`;
+        nonTableLines = contentLines.filter(l => !l.match(/^Comparable\s+\d+/i) && l.length > 20);
+      }
     }
 
-    return `<div class="section">
-      <div class="section-header"><h3>${sec.title.replace(/^\d+\.\s+/,'')}</h3></div>
-      <div class="section-body">${bodyHtml}</div>
+    const paraHtml = nonTableLines.map(line => {
+      const clean = line.replace(/^\*\s+/, '').replace(/^-\s+/, '').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      if (line.match(/^[\*-]\s/)) return `<li>${clean}</li>`;
+      // Grade rows in condition section
+      if (isCondition) {
+        const g = (line.match(/Grade ([A-D][+-]?)/) || [])[1];
+        if (g && gradeWidths[g]) {
+          return `<div class="grade-row"><span class="grade-label">${clean}</span><div class="grade-track"><div class="grade-fill" style="width:${gradeWidths[g]}%;background:${gradeColors[g]||'#c9922a'};"></div></div></div>`;
+        }
+      }
+      return `<p>${clean}</p>`;
+    });
+    const wrapped = paraHtml.join('\n').replace(/((?:<li>[\s\S]*?<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+    return `
+    <div class="report-section">
+      <div class="section-header"><h3>${s.title.replace(/^\d+\.\s+/,'')}</h3></div>
+      <div class="section-body">
+        ${wrapped}
+        ${bodyHtml}
+      </div>
     </div>`;
   }).join('');
-
-  // Photo grid
-  const photoGrid = images.length ? `
-    <div class="photo-grid">
-      ${images.map((img, i) => `<div class="photo-cell"><img src="${img}" alt="Photo ${i+1}" loading="lazy"></div>`).join('')}
-    </div>` : '';
-
-  // Metric cards
-  const metricCards = `
-    <div class="metrics">
-      ${confidence ? `<div class="metric-card">
-        <div class="metric-label">Authenticity Confidence</div>
-        <div class="metric-value">${confidence}%</div>
-        <div class="metric-bar"><div class="metric-fill" style="width:${confidence}%;background:${confColor};"></div></div>
-      </div>` : ''}
-      ${grade ? `<div class="metric-card">
-        <div class="metric-label">Condition Grade</div>
-        <div class="metric-value">${grade}</div>
-        <div class="metric-bar"><div class="metric-fill" style="width:${gradeWidths[grade]||50}%;background:${gradeColors[grade]||'#c9922a'};"></div></div>
-      </div>` : ''}
-      ${valuation ? `<div class="metric-card valuation-card">
-        <div class="metric-label">Valuation</div>
-        <div class="metric-value valuation-value">${valuation}</div>
-      </div>` : ''}
-    </div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3scouts Deep Analysis — ${report.listing_title}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --gold: #c9922a; --gold-lt: #e8b84b; --ink: #2c1f0e; --ink-lt: #5a3e20;
-      --parchment: #f5edd6; --parchment-dk: #e8d9b5; --sepia: #8b6344;
-      --white: #fffdf7; --green: #1a4a2e;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--parchment); font-family: 'EB Garamond', serif; color: var(--ink); }
-
-    /* NAV */
-    nav { background: var(--ink); border-bottom: 2px solid var(--gold); padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 10px; }
-    .nav-dots { display: flex; gap: 4px; }
-    .nav-dots span { display: block; width: 9px; height: 9px; border-radius: 50%; }
-    .nav-logo { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: var(--white); text-decoration: none; letter-spacing: 0.04em; }
-    .nav-logo em { font-style: normal; font-size: 0.72rem; color: var(--gold); }
-    .print-btn { margin-left: auto; background: transparent; border: 1px solid var(--gold); color: var(--gold); font-family: 'Cinzel', serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border-radius: 3px; cursor: pointer; }
-    .print-btn:hover { background: var(--gold); color: var(--ink); }
-
-    /* HEADER */
-    .report-header { background: var(--ink); padding: 1.5rem; border-bottom: 2px solid var(--gold); }
-    .report-tag { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; letter-spacing: 2.5px; color: var(--gold); text-transform: uppercase; margin-bottom: 0.5rem; }
-    .report-title { font-family: 'Cinzel', serif; font-size: 1.3rem; font-weight: 600; color: var(--white); line-height: 1.35; margin-bottom: 0.5rem; }
-    .report-meta { font-size: 13px; color: rgba(255,255,255,0.45); display: flex; gap: 1.5rem; flex-wrap: wrap; }
-    .report-meta strong { color: var(--gold-lt); }
-    ${isEbay && report.listing_url ? '.view-ebay { display: inline-block; background: var(--gold); color: var(--ink); font-family: Cinzel, serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 8px 18px; border-radius: 3px; text-decoration: none; margin-top: 0.75rem; }' : ''}
-
-    /* PHOTOS */
-    .photo-section { background: #1a0e05; padding: 1rem 1.5rem; border-bottom: 1px solid #3a2a15; }
-    .photo-section-label { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; margin-bottom: 0.75rem; }
-    .photo-grid { display: flex; gap: 10px; flex-wrap: wrap; }
-    .photo-cell { flex: 0 0 auto; }
-    .photo-cell img { width: 160px; height: 130px; object-fit: cover; border-radius: 3px; border: 1px solid #3a2a15; display: block; }
-
-    /* METRICS */
-    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 1.25rem 1.5rem; background: var(--white); border-bottom: 1px solid var(--parchment-dk); }
-    .metric-card { background: var(--parchment); border: 1px solid var(--parchment-dk); border-radius: 4px; padding: 1rem 1.25rem; }
-    .metric-label { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--sepia); text-transform: uppercase; margin-bottom: 0.4rem; }
-    .metric-value { font-family: 'Cinzel', serif; font-size: 1.75rem; font-weight: 700; color: var(--ink); line-height: 1; margin-bottom: 0.6rem; }
-    .metric-bar { background: var(--parchment-dk); border-radius: 3px; height: 6px; overflow: hidden; }
-    .metric-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
-    .valuation-card { background: var(--ink); border-color: var(--gold); }
-    .valuation-card .metric-label { color: var(--gold); }
-    .valuation-value { font-size: 1.3rem; color: var(--gold-lt) !important; }
-
-    /* BRIEF REMINDER */
-    .brief-bar { background: var(--parchment-dk); padding: 0.6rem 1.5rem; border-bottom: 1px solid #d0c0a0; }
-    .brief-bar p { font-size: 13px; color: var(--sepia); }
-    .brief-bar strong { color: var(--ink); }
-
-    /* SECTIONS */
-    .sections { max-width: 800px; margin: 0 auto; padding: 0 1.5rem 2rem; }
-    .section { margin-top: 1.5rem; background: var(--white); border: 1px solid var(--parchment-dk); border-radius: 4px; overflow: hidden; }
-    .section-header { background: var(--parchment); border-bottom: 2px solid var(--gold); padding: 0.6rem 1.25rem; }
-    .section-header h3 { font-family: 'Cinzel', serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--gold); text-transform: uppercase; }
-    .section-body { padding: 1.25rem; }
-    .section-body p { font-size: 15px; color: var(--ink); line-height: 1.85; margin-bottom: 0.75rem; }
-    .section-body p:last-child { margin-bottom: 0; }
-    .section-body li { font-size: 14.5px; color: var(--ink-lt); line-height: 1.75; margin-bottom: 0.35rem; padding-left: 1.25rem; border-left: 2px solid var(--parchment-dk); list-style: none; }
-
-    /* GRADE ROWS in condition */
-    .grade-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-    .grade-label { font-size: 14px; color: var(--ink); min-width: 200px; flex-shrink: 0; }
-    .grade-track { flex: 1; background: var(--parchment-dk); border-radius: 3px; height: 5px; overflow: hidden; }
-    .grade-fill { height: 100%; border-radius: 3px; }
-
-    /* COMPARABLES TABLE */
-    .comp-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-    .comp-table thead th { background: var(--gold); color: white; font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; text-align: left; }
-    .comp-table tbody td { padding: 9px 12px; font-size: 14px; color: var(--ink); line-height: 1.65; border-bottom: 1px solid var(--parchment-dk); }
-    .row-even { background: var(--white); }
-    .row-odd { background: var(--parchment); }
-
-    /* FOOTER */
-    .report-footer { background: var(--parchment-dk); padding: 1rem 1.5rem; text-align: center; margin-top: 2rem; }
-    .report-footer p { font-size: 12px; color: var(--sepia); line-height: 1.7; }
-    .report-footer a { color: var(--gold); text-decoration: none; }
-
-    @media print {
-      nav .print-btn { display: none; }
-      .report-footer { margin-top: 1rem; }
-    }
-    @media (max-width: 600px) {
-      .photo-cell img { width: 120px; height: 100px; }
-      .metrics { grid-template-columns: 1fr 1fr; }
-      .grade-label { min-width: 140px; font-size: 13px; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3scouts Report — ${report.listing_title}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --parchment:#f5edd6; --parchment-dk:#e8d9b5; --ink:#2c1f0e; --ink-lt:#5a3e20;
+    --sepia:#8b6344; --sepia-lt:#b8945a; --gold:#c9922a; --gold-lt:#e8b84b;
+    --white:#fffdf7; --shadow:rgba(44,31,14,0.15);
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: var(--parchment);
+    background-image: radial-gradient(ellipse at 20% 20%, rgba(139,99,68,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(139,99,68,0.05) 0%, transparent 60%);
+    color: var(--ink); font-family: 'EB Garamond', Georgia, serif;
+    font-size: 17px; line-height: 1.75;
+  }
+  nav { position:sticky;top:0;z-index:100;background:var(--ink);border-bottom:2px solid var(--gold);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between; }
+  .nav-brand { display:inline-flex;align-items:center;gap:10px;text-decoration:none; }
+  .nav-dots { display:flex;gap:4px; }
+  .nav-dots span { width:8px;height:8px;border-radius:50%;display:block; }
+  .nav-logo { font-family:'Cinzel',serif;font-size:1.1rem;font-weight:600;color:var(--gold-lt);letter-spacing:0.06em; }
+  .nav-logo em { color:var(--sepia-lt);font-style:normal;font-weight:400; }
+  .nav-btns { display:flex;gap:8px; }
+  .btn-nav { background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:'EB Garamond',serif;font-size:13px;letter-spacing:0.5px;padding:6px 14px;border-radius:3px;cursor:pointer;transition:background 0.2s,color 0.2s; }
+  .btn-nav:hover { background:var(--gold);color:var(--ink); }
+  .btn-nav--print { border-color:var(--sepia-lt);color:var(--sepia-lt); }
+  .btn-nav--print:hover { background:var(--sepia-lt);color:var(--ink); }
+  .report-header { background:var(--ink);background-image:linear-gradient(135deg,#1a0e05 0%,#2c1f0e 60%,#1a0e05 100%);border-bottom:3px solid var(--gold);padding:2.5rem 2.5rem 2rem; }
+  .report-tag { font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:0.6rem; }
+  .report-title { font-family:'Cinzel',serif;font-size:clamp(1.2rem,3vw,1.9rem);font-weight:600;color:var(--gold-lt);line-height:1.3;margin-bottom:1rem; }
+  .report-meta { display:flex;flex-wrap:wrap;gap:0.4rem 1.5rem;font-family:'EB Garamond',serif;font-size:14px;color:rgba(255,253,247,0.65); }
+  .report-meta a { color:var(--gold);text-decoration:none; }
+  .report-meta a:hover { text-decoration:underline; }
+  .container { max-width:860px;margin:0 auto;padding:2rem 2rem 3rem; }
+  .photo-section { margin-bottom:2rem; }
+  .photo-section-label { font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--sepia);margin-bottom:0.75rem;padding-bottom:0.4rem;border-bottom:1px solid var(--parchment-dk); }
+  .photo-grid { display:flex;flex-wrap:wrap;gap:12px; }
+  .photo-item { border:2px solid var(--parchment-dk);border-radius:4px;overflow:hidden;box-shadow:0 3px 12px var(--shadow);background:var(--white);flex-shrink:0; }
+  .photo-item img { display:block;width:200px;height:165px;object-fit:cover; }
+  .metrics-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem; }
+  .metric-card { background:var(--white);border:1px solid var(--parchment-dk);border-top:3px solid var(--gold);border-radius:4px;padding:1rem 1.25rem 1.1rem;box-shadow:0 2px 8px var(--shadow); }
+  .metric-card--valuation { background:var(--ink);border-color:var(--gold); }
+  .metric-label { font-family:'Cinzel',serif;font-size:9.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--sepia);margin-bottom:0.4rem; }
+  .metric-card--valuation .metric-label { color:var(--gold);opacity:0.75; }
+  .metric-value { font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--ink);line-height:1; }
+  .metric-value--gold { color:var(--gold-lt); }
+  .metric-bar-track { height:5px;background:var(--parchment-dk);border-radius:3px;margin-top:0.65rem;overflow:hidden; }
+  .metric-bar-fill { height:100%;border-radius:3px; }
+  .section-divider { text-align:center;margin:2rem 0 1.5rem;font-size:1.1rem;color:var(--gold);letter-spacing:4px;opacity:0.5; }
+  .report-section { margin-bottom:1.75rem; }
+  .section-header { background:var(--ink);border-left:4px solid var(--gold);padding:0.55rem 1rem;margin-bottom:0; }
+  .section-header h3 { font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:0; }
+  .section-body { background:var(--white);border:1px solid var(--parchment-dk);border-top:none;border-radius:0 0 3px 3px;padding:1.1rem 1.4rem;box-shadow:0 1px 5px var(--shadow); }
+  .section-body p { margin-bottom:0.75rem;color:var(--ink);font-size:16px;line-height:1.8; }
+  .section-body p:last-child { margin-bottom:0; }
+  .section-body strong { font-weight:600; }
+  .section-body ul { margin:0.5rem 0 0.75rem 1.2rem; }
+  .section-body li { font-size:16px;line-height:1.75;color:var(--ink);margin-bottom:0.3rem; }
+  .section-body li::marker { color:var(--gold); }
+  .grade-row { display:flex;align-items:center;gap:12px;margin-bottom:10px; }
+  .grade-label { font-size:15px;color:var(--ink);min-width:200px;flex-shrink:0; }
+  .grade-track { flex:1;background:var(--parchment-dk);border-radius:3px;height:5px;overflow:hidden; }
+  .grade-fill { height:100%;border-radius:3px; }
+  .comp-table-wrap { overflow-x:auto;margin-top:0.5rem; }
+  .comp-table { width:100%;border-collapse:collapse; }
+  .comp-table thead th { background:var(--gold);color:var(--ink);font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;text-align:left; }
+  .comp-table tbody td { padding:9px 12px;font-size:15px;color:var(--ink);line-height:1.6;border-bottom:1px solid var(--parchment-dk); }
+  .row-even { background:var(--white); }
+  .row-odd { background:var(--parchment); }
+  .report-footer { background:var(--ink);border-top:2px solid var(--gold);padding:1.5rem 2.5rem;margin-top:3rem;text-align:center; }
+  .report-footer p { font-size:12px;color:rgba(255,253,247,0.5);line-height:1.8; }
+  .report-footer a { color:var(--gold);text-decoration:none; }
+  .footer-logo { font-family:'Cinzel',serif;font-size:0.9rem;color:var(--gold-lt);margin-bottom:0.5rem;display:block;letter-spacing:0.1em; }
+  @media print {
+    nav { display:none; }
+    .report-header,.section-header,.metric-card--valuation,.report-footer { -webkit-print-color-adjust:exact;print-color-adjust:exact; }
+    body { font-size:14px; }
+  }
+  @media (max-width:600px) {
+    .photo-item img { width:140px;height:115px; }
+    .metrics-row { grid-template-columns:1fr 1fr; }
+    nav { padding:0 1rem; }
+    .container { padding:1.25rem 1rem 2rem; }
+    .report-header { padding:1.5rem 1rem 1.25rem; }
+    .grade-label { min-width:140px;font-size:13px; }
+  }
+</style>
 </head>
 <body>
 
-  <nav>
-    <a href="/" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;">
-      <div class="nav-dots">
-        <span style="background:var(--gold);"></span>
-        <span style="background:var(--gold-lt);"></span>
-        <span style="background:var(--gold);opacity:0.5;"></span>
-      </div>
-      <span class="nav-logo">3scouts<em>.com</em></span>
-    </a>
-    <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
-  </nav>
-
-  <div class="report-header">
-    <p class="report-tag">3scouts · ${isEbay ? 'Deep Analysis Report' : 'Valuation Report'}</p>
-    <h1 class="report-title">${report.listing_title}</h1>
-    <div class="report-meta">
-      <span>${dateStr}</span>
-      ${isEbay && report.listing_price ? `<span>Listed at <strong>${report.listing_price}</strong></span>` : ''}
-      ${isEbay && report.listing_url ? `<span><a href="${report.listing_url}" style="color:var(--gold);" target="_blank">View on eBay →</a></span>` : ''}
+<nav>
+  <a href="/" class="nav-brand">
+    <div class="nav-dots">
+      <span style="background:var(--gold);"></span>
+      <span style="background:var(--gold-lt);"></span>
+      <span style="background:var(--gold);opacity:0.5;"></span>
     </div>
+    <span class="nav-logo">3scouts<em>.com</em></span>
+  </a>
+  <div class="nav-btns">
+    <button class="btn-nav btn-nav--print" onclick="window.print()">🖨 Print</button>
+    <button class="btn-nav" onclick="savePDF()">⬇ Save as PDF</button>
   </div>
+</nav>
+
+<div class="report-header">
+  <p class="report-tag">3scouts · ${isEbay ? 'Deep Analysis Report' : 'Valuation Report'}</p>
+  <h1 class="report-title">${report.listing_title}</h1>
+  <div class="report-meta">
+    <span>${dateStr}</span>
+    ${isEbay && report.listing_price ? `<span>Listed at <strong>${report.listing_price}</strong></span>` : ''}
+    ${isEbay && report.listing_url ? `<span><a href="${report.listing_url}" target="_blank">View on eBay →</a></span>` : ''}
+  </div>
+</div>
+
+<div class="container">
 
   ${images.length ? `<div class="photo-section">
     <p class="photo-section-label">${isEbay ? 'Listing photos' : 'Submitted photos'}</p>
-    ${photoGrid}
+    <div class="photo-grid">${photoGrid}</div>
   </div>` : ''}
 
   ${metricCards}
 
-  ${report.brief ? `<div class="brief-bar"><p><strong>Brief:</strong> ${report.brief}</p></div>` : ''}
+  <div class="section-divider">◈ &nbsp; ◈ &nbsp; ◈</div>
 
-  <div class="sections">
-    ${sectionsHtml}
-  </div>
+  ${sectionsHtml}
 
-  <div class="report-footer">
-    <p>Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Always satisfy yourself on authenticity and condition before purchasing or selling.</p>
-    <p style="margin-top:0.5rem;"><a href="https://www.3scouts.com">3scouts.com</a> &nbsp;·&nbsp; Powered by Anthropic &amp; Claude Advanced Vision</p>
-  </div>
+</div>
+
+<div class="report-footer">
+  <span class="footer-logo">3scouts.com</span>
+  <p>Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing decisions made on the basis of this report.</p>
+  <p style="margin-top:0.5rem;">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com">3scouts.com</a> &nbsp;·&nbsp; <a href="mailto:alan@3scouts.com">alan@3scouts.com</a></p>
+</div>
+
+<script>
+function savePDF() {
+  const s = document.createElement('style');
+  s.id = 'pdf-page-style';
+  s.textContent = '@page { size: A4; margin: 10mm 12mm; }';
+  document.head.appendChild(s);
+  const t = document.title;
+  document.title = '3scouts-report';
+  window.print();
+  document.title = t;
+  document.head.removeChild(s);
+}
+</script>
 
 </body>
 </html>`;
 }
 
-app.get('/report/:id', async (req, res) => {
-  const { id } = req.params;
+app.get('/report/:token', async (req, res) => {
+  const { token } = req.params;
   try {
     const { Pool } = require('pg');
     const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const client = await pool.connect();
-    const result = await client.query(
-      `SELECT da.*, s.name as subscriber_name, s.description as brief, s.category
-       FROM deep_analyses da
-       JOIN subscribers s ON da.subscriber_id = s.id
-       WHERE da.id = $1`,
-      [id]
-    );
+
+    // Support both old numeric IDs and new hex tokens during migration
+    let result;
+    if (/^[a-f0-9]{32}$/.test(token)) {
+      result = await client.query(
+        `SELECT da.*, s.name as subscriber_name, s.description as brief, s.category
+         FROM deep_analyses da
+         JOIN subscribers s ON da.subscriber_id = s.id
+         WHERE da.report_token = $1`,
+        [token]
+      );
+    } else if (/^\d+$/.test(token)) {
+      // Legacy numeric ID — still works for old reports
+      result = await client.query(
+        `SELECT da.*, s.name as subscriber_name, s.description as brief, s.category
+         FROM deep_analyses da
+         JOIN subscribers s ON da.subscriber_id = s.id
+         WHERE da.id = $1`,
+        [parseInt(token)]
+      );
+    } else {
+      client.release();
+      await pool.end();
+      return res.status(404).send('Report not found');
+    }
     client.release();
     await pool.end();
 
