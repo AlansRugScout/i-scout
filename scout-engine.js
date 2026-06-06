@@ -67,6 +67,17 @@ async function initDatabase() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    // Add access_token to subscribers if not present
+    await client.query(`
+      ALTER TABLE subscribers
+        ADD COLUMN IF NOT EXISTS access_token VARCHAR(32)
+    `);
+    // Generate tokens for any subscribers that don't have one
+    await client.query(`
+      UPDATE subscribers
+      SET access_token = substr(md5(random()::text || id::text), 1, 32)
+      WHERE access_token IS NULL
+    `);
     console.log('Database initialised');
   } finally {
     client.release();
@@ -391,7 +402,8 @@ async function sendDigestEmail(subscriber, listings) {
         <div style="padding:1.25rem 1.25rem 0.5rem;">${listingBlocks}</div>
         <div style="padding:0.75rem 1.5rem 1rem;border-top:1px solid #e8d9b5;">
           <p style="font-size:13px;color:#8b6344;line-height:1.7;margin:0;">
-            To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
+            <a href="${process.env.SITE_URL}/account?t=${subscriber.access_token}" style="color:#c9922a;font-weight:bold;">My account &amp; submit item →</a>
+            &nbsp;·&nbsp; To update your brief, email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a>
             &nbsp;·&nbsp; <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage subscription</a>
             &nbsp;·&nbsp; Remember — Buy It Now prices are often negotiable.
           </p>
