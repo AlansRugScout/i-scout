@@ -53,7 +53,6 @@ async function initDatabase() {
         listing_price TEXT,
         listing_image TEXT,
         analysis_text TEXT,
-        report_token VARCHAR(32) UNIQUE,
         requested_at TIMESTAMP DEFAULT NOW(),
         completed_at TIMESTAMP
       );
@@ -499,11 +498,10 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     const analysisText = claudeResponse.content[0].text;
 
     // Save to database
-    const reportToken = require('crypto').randomBytes(16).toString('hex');
     const result = await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, report_token, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING id`,
-      [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText, reportToken]
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
+      [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText]
     );
     const reportId = result.rows[0].id;
 
@@ -514,7 +512,7 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     );
 
     // Send Deep Analysis email with report link
-    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId, reportToken);
+    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId);
 
     console.log(`Deep Analysis completed for ${subscriber.email} — ${listing.title}`);
 
@@ -655,9 +653,9 @@ function buildComparableTable(rows) {
 }
 
 
-async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId, reportToken) {
+async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId) {
   const price = `${listing.price?.value} ${listing.price?.currency}`;
-  const reportUrl = `${process.env.SITE_URL}/report/${reportToken || reportId}`;
+  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
   await resend.emails.send({
@@ -704,8 +702,8 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
 }
 
 
-async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken) {
-  const reportUrl = `${process.env.SITE_URL}/report/${reportToken || reportId}`;
+async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId) {
+  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
   const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
 
@@ -816,42 +814,16 @@ A subscriber has submitted ${imageContents.length} photo${imageContents.length >
 
 Their description: ${description}
 
-Please provide a full Deep Analysis using EXACTLY this structure and format:
+Please provide a full Deep Analysis covering:
+1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
+2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
+3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
+4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible. Use EUR (€) or GBP (£) for valuations.
+5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
+6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
+7. ANY RED FLAGS — What should the owner verify or be cautious about?
 
-1. ITEM IDENTIFICATION
-Write 2-3 sentences identifying the item, maker, and approximate date.
-
-2. AUTHENTICITY ASSESSMENT
-Write your assessment. End this section with EXACTLY this line:
-Authenticity Confidence: [NUMBER]%
-(Replace [NUMBER] with a whole number from 0-100.)
-
-3. CONDITION ASSESSMENT
-Describe the condition. End this section with EXACTLY this line:
-Overall Grade: [GRADE]
-(Replace [GRADE] with one of: A+, A, A-, B+, B, B-, C+, C, C-, D)
-
-4. COMPARABLE SALES
-List 3-5 real auction or private sales of similar items. For each one write a single line in this format:
-[Description] — [£/€ price] ([year], [auction house or source])
-IMPORTANT: include the highest known sale prices for this category. Do not omit significant sales.
-
-5. VALUATION
-Write your assessment. Include a line in EXACTLY this format:
-Fair Market Value: £[LOW] – £[HIGH]
-(Use £ or € as appropriate for the Irish/UK market.)
-
-6. RECOMMENDATION
-Plain English advice. No jargon.
-
-7. RED FLAGS
-Any concerns or things to verify.
-
-STRICT RULES:
-- Count all visible physical details carefully before stating any numbers (bells, rattles, pieces, hallmarks). Only state what you can clearly see in the photos.
-- Do not use markdown: no #, ##, **, or --- symbols.
-- Write in plain prose with the numbered section headings exactly as shown above.
-- Today's date is June 2026.`;
+Be specific, expert and honest. Note that without physically examining the item, your assessment is based on the photographs provided. Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings. Today's date is June 2026. For comparable sales, use the most recent data available and note that prices shown are from your knowledge base.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
@@ -870,11 +842,10 @@ STRICT RULES:
     // Save to database
     const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
     const allImages = imageDataUrls && imageDataUrls.length > 0 ? JSON.stringify(imageDataUrls) : null;
-    const reportToken = require('crypto').randomBytes(16).toString('hex');
     const result = await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, report_token, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 200), allImages || firstImage, analysisText, reportToken]
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, completed_at)
+       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
+      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), allImages || firstImage, analysisText]
     );
     const reportId = result.rows[0].id;
 
@@ -885,9 +856,9 @@ STRICT RULES:
     );
 
     // Send notification email with report link
-    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
+    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId);
 
-    // Queue follow-up email — database-backed so it survives server restarts
+    // Queue follow-up email in database — survives server restarts
     if (!subscriber.active || subscriber.plan === 'Free Valuation') {
       try {
         await client.query(
@@ -895,7 +866,10 @@ STRICT RULES:
            VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
           [subscriber.email, subscriber.name]
         );
-      } catch(e) { console.error('Follow-up queue error:', e.message); }
+        console.log(`Follow-up queued for ${subscriber.email} in 1 hour`);
+      } catch(e) {
+        console.error('Follow-up queue error:', e.message);
+      }
     }
 
     console.log(`Valuation completed for ${subscriber.email}`);
@@ -1121,7 +1095,6 @@ function scheduleTopOfHour() {
 scheduleTopOfHour();
 
 async function processFollowUpQueue() {
-  const { Pool } = require('pg');
   const pool2 = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   const client2 = await pool2.connect();
   try {
