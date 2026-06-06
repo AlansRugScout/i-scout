@@ -1057,6 +1057,58 @@ function savePDF(){
 
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
 
+app.get('/my-account', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'my-account.html'));
+});
+
+app.post('/account/request-access', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  // Always return 200 — never reveal whether email exists
+  res.json({ success: true });
+  // Fire email in background
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const result = await client.query(
+      'SELECT name, access_token FROM subscribers WHERE email = $1 AND active = true',
+      [email.toLowerCase().trim()]
+    );
+    client.release();
+    await pool.end();
+    if (!result.rows.length) return; // Silently do nothing — don't reveal
+    const { name, access_token } = result.rows[0];
+    const accountUrl = `${process.env.SITE_URL}/account?t=${access_token}`;
+    await resend.emails.send({
+      from: '3scouts <scout@3scouts.com>',
+      reply_to: 'alan@3scouts.com',
+      to: email,
+      subject: 'Your 3scouts account link',
+      html: `
+        <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+          <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+            <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Account access</p>
+            <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your account link, ${name}</h2>
+          </div>
+          <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Click below to access your 3scouts account — check your remaining analyses, submit items for valuation, and view your recent reports.</p>
+            <a href="${accountUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Go to my account →</a>
+            <p style="font-size:13px;color:#8b6344;margin-top:1.25rem;line-height:1.6;">This link is personal to your account — please don't share it. It doesn't expire.</p>
+          </div>
+          <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+            <p style="font-size:12px;color:#8b6344;margin:0;">3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a></p>
+          </div>
+        </div>
+      `,
+    });
+  } catch(err) {
+    console.error('Account access email error:', err.message);
+  }
+});
+
+// ── ACCOUNT PORTAL ─────────────────────────────────────────────
+
 app.get('/account', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'account.html'));
 });
