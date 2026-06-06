@@ -470,12 +470,20 @@ app.post('/request-valuation', async (req, res) => {
          ON CONFLICT (email) DO NOTHING`,
         [name || 'Visitor', email, description]
       );
-      const newSub = await client2.query('SELECT * FROM subscribers WHERE email = $1', [email]);
+      const newSub = await client2.query('SELECT id, deep_analyses_used, deep_analyses_limit, plan FROM subscribers WHERE email = $1', [email]);
       client2.release();
       await pool2.end();
 
       if (newSub.rows.length > 0) {
-        runDeepAnalysisFromDescription(newSub.rows[0].id, description, images || [])
+        const sub = newSub.rows[0];
+        // Block if they already consumed their free valuation
+        if (sub.deep_analyses_used >= sub.deep_analyses_limit) {
+          return res.status(403).json({
+            error: 'already_used',
+            message: 'You have already used your free valuation. Subscribe to get more analyses.'
+          });
+        }
+        runDeepAnalysisFromDescription(sub.id, description, images || [])
           .catch(err => console.error('Free valuation error:', err.message));
       }
     }
@@ -652,19 +660,57 @@ function generateReportPage(report, images, isEbay, dateStr) {
       <img src="${img}" alt="Item photo" loading="lazy" onerror="this.parentElement.style.display='none'">
     </div>`).join('');
 
+  // Confidence colour
+  const confColor = confidence === null ? '#c9922a'
+    : confidence >= 80 ? '#1a6b2e'
+    : confidence >= 60 ? '#c9922a'
+    : '#8b2020';
+  const confLabel = confidence === null ? '—'
+    : confidence >= 80 ? 'High'
+    : confidence >= 60 ? 'Moderate'
+    : 'Low';
+
+  // SVG arc gauge helper
+  function arcGauge(pct, color) {
+    const r = 54, cx = 65, cy = 65;
+    const startAngle = -210, sweep = 240;
+    const deg = startAngle + (sweep * pct / 100);
+    const toRad = a => a * Math.PI / 180;
+    const x1 = cx + r * Math.cos(toRad(startAngle));
+    const y1 = cy + r * Math.sin(toRad(startAngle));
+    const x2 = cx + r * Math.cos(toRad(deg));
+    const y2 = cy + r * Math.sin(toRad(deg));
+    const large = sweep * pct / 100 > 180 ? 1 : 0;
+    const bx1 = cx + r * Math.cos(toRad(startAngle));
+    const by1 = cy + r * Math.sin(toRad(startAngle));
+    const bDeg = startAngle + sweep;
+    const bx2 = cx + r * Math.cos(toRad(bDeg));
+    const by2 = cy + r * Math.sin(toRad(bDeg));
+    return `<svg viewBox="0 0 130 90" width="130" height="90" style="display:block;margin:0 auto 4px">
+      <path d="M${bx1},${by1} A${r},${r} 0 1 1 ${bx2},${by2}" fill="none" stroke="#e8d9b5" stroke-width="10" stroke-linecap="round"/>
+      ${pct > 0 ? `<path d="M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round"/>` : ''}
+      <text x="${cx}" y="${cy+4}" text-anchor="middle" font-family="Cinzel,serif" font-size="18" font-weight="700" fill="${color}">${pct}%</text>
+    </svg>`;
+  }
+
   const metricCards = `
   <div class="metrics-row">
     ${confidence !== null ? `
-    <div class="metric-card">
+    <div class="metric-card metric-card--gauge">
       <p class="metric-label">Authenticity Confidence</p>
-      <p class="metric-value">${confidence}%</p>
-      <div class="metric-bar-track"><div class="metric-bar-fill" style="width:${confidence}%;background:${confidence>=80?'#1a4a2e':confidence>=60?'#c9922a':'#8b2020'};"></div></div>
+      ${arcGauge(confidence, confColor)}
+      <p class="metric-verdict" style="color:${confColor}">${confLabel}</p>
     </div>` : ''}
     ${grade ? `
     <div class="metric-card">
       <p class="metric-label">Condition Grade</p>
-      <p class="metric-value">${grade}</p>
+      <p class="metric-value metric-value--grade" style="color:${gc}">${grade}</p>
       <div class="metric-bar-track"><div class="metric-bar-fill" style="width:${gradeWidth[grade]||70}%;background:${gc};"></div></div>
+      <p class="metric-grade-desc">${
+        grade.startsWith('A') ? 'Excellent condition' :
+        grade.startsWith('B') ? 'Good condition' :
+        grade.startsWith('C') ? 'Fair condition' : 'Poor condition'
+      }</p>
     </div>` : ''}
     ${valuation ? `
     <div class="metric-card metric-card--valuation">
@@ -799,13 +845,17 @@ function generateReportPage(report, images, isEbay, dateStr) {
   .metric-card--valuation .metric-label { color:var(--gold);opacity:0.75; }
   .metric-value { font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--ink);line-height:1; }
   .metric-value--gold { color:var(--gold-lt); }
+  .metric-value--grade { font-size:2rem; }
+  .metric-verdict { font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;text-align:center;margin-top:2px; }
+  .metric-grade-desc { font-size:13px;color:var(--sepia);margin-top:6px;text-align:center; }
+  .metric-card--gauge { text-align:center; }
   .metric-bar-track { height:5px;background:var(--parchment-dk);border-radius:3px;margin-top:0.65rem;overflow:hidden; }
   .metric-bar-fill { height:100%;border-radius:3px; }
   .section-divider { text-align:center;margin:2rem 0 1.5rem;font-size:1.1rem;color:var(--gold);letter-spacing:4px;opacity:0.5; }
   .report-section { margin-bottom:1.75rem; }
   .section-header { background:var(--ink);border-left:4px solid var(--gold);padding:0.55rem 1rem;margin-bottom:0; }
   .section-header h3 { font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:0; }
-  .section-body { background:var(--white);border:1px solid var(--parchment-dk);border-top:none;border-radius:0 0 3px 3px;padding:1.1rem 1.4rem;box-shadow:0 1px 5px var(--shadow); }
+  .section-body { background:var(--white);border:1px solid var(--parchment-dk);border-top:none;border-radius:0 0 3px 3px;padding:1.1rem 1.4rem;box-shadow:0 1px 5px var(--shadow);overflow-wrap:break-word;word-wrap:break-word;overflow-x:hidden; }
   .section-body p { margin-bottom:0.75rem;color:var(--ink);font-size:16px;line-height:1.8; }
   .section-body p:last-child { margin-bottom:0; }
   .section-body strong { font-weight:600; }
