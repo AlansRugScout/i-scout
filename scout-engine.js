@@ -816,21 +816,42 @@ A subscriber has submitted ${imageContents.length} photo${imageContents.length >
 
 Their description: ${description}
 
-Please provide a full Deep Analysis covering:
-1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
-2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
-3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
-4. COMPARABLE SALES — What have similar items sold for at auction or privately? Give 3-5 comparable examples with prices and dates. IMPORTANT: include the highest known sale prices for this category — do not omit notable top results. Use EUR (€) or GBP (£) for all prices.
-5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
-6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
-7. ANY RED FLAGS — What should the owner verify or be cautious about?
+Please provide a full Deep Analysis using EXACTLY this structure and format:
 
-IMPORTANT INSTRUCTIONS:
-- Count all visible physical details carefully and precisely before stating any numbers (bells, rattles, coral pieces, hallmarks etc). Only state what you can clearly see.
-- For comparable sales, always include the highest known auction results for this type of item — do not omit significant sales.
-- Be specific, expert and honest. Without physically examining the item, your assessment is based on the photographs provided.
-- Do not use markdown formatting — no #, ##, **, or --- symbols. Write in plain prose with numbered section headings.
-- Today's date is June 2026. For comparable sales, use the most recent data available and note prices are from your knowledge base.`;
+1. ITEM IDENTIFICATION
+Write 2-3 sentences identifying the item, maker, and approximate date.
+
+2. AUTHENTICITY ASSESSMENT
+Write your assessment. End this section with EXACTLY this line:
+Authenticity Confidence: [NUMBER]%
+(Replace [NUMBER] with a whole number from 0-100.)
+
+3. CONDITION ASSESSMENT
+Describe the condition. End this section with EXACTLY this line:
+Overall Grade: [GRADE]
+(Replace [GRADE] with one of: A+, A, A-, B+, B, B-, C+, C, C-, D)
+
+4. COMPARABLE SALES
+List 3-5 real auction or private sales of similar items. For each one write a single line in this format:
+[Description] — [£/€ price] ([year], [auction house or source])
+IMPORTANT: include the highest known sale prices for this category. Do not omit significant sales.
+
+5. VALUATION
+Write your assessment. Include a line in EXACTLY this format:
+Fair Market Value: £[LOW] – £[HIGH]
+(Use £ or € as appropriate for the Irish/UK market.)
+
+6. RECOMMENDATION
+Plain English advice. No jargon.
+
+7. RED FLAGS
+Any concerns or things to verify.
+
+STRICT RULES:
+- Count all visible physical details carefully before stating any numbers (bells, rattles, pieces, hallmarks). Only state what you can clearly see in the photos.
+- Do not use markdown: no #, ##, **, or --- symbols.
+- Write in plain prose with the numbered section headings exactly as shown above.
+- Today's date is June 2026.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
@@ -853,7 +874,7 @@ IMPORTANT INSTRUCTIONS:
     const result = await client.query(
       `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, report_token, completed_at)
        VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), allImages || firstImage, analysisText, reportToken]
+      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 200), allImages || firstImage, analysisText, reportToken]
     );
     const reportId = result.rows[0].id;
 
