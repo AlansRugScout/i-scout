@@ -696,15 +696,29 @@ function generateReportPage(report, images, isEbay, dateStr) {
       </table></div>`;
     }
 
-    // Comparables fallback — numbered items in their own section
+    // Comparables fallback — split into sale entries (have price/date) and narrative
     if (isComps && tableRows.length < 2) {
-      const compRows = contentLines.filter(l => l.match(/\d/) || l.length > 15).map((l, i) => {
-        const clean = l.replace(/^Comparable\s+\d+:\s*/i,'').replace(/\*\*/g,'');
-        return `<tr class="${i%2===0?'row-even':'row-odd'}"><td>${clean}</td></tr>`;
-      }).join('');
-      if (compRows) {
-        bodyHtml = `<div class="comp-table-wrap"><table class="comp-table"><thead><tr><th>Comparable sale</th></tr></thead><tbody>${compRows}</tbody></table></div>`;
-        nonTableLines = contentLines.filter(l => !l.match(/^Comparable\s+\d+/i) && l.length > 20);
+      const saleLines = [];
+      const narrativeOnlyLines = [];
+      for (const l of contentLines) {
+        const clean = l.replace(/^Comparable\s+\d+[:.\s]*/i, '').replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim();
+        if (!clean) continue;
+        // Sale entry = has a currency symbol or a 4-digit year
+        if (clean.match(/[£€$]/) || clean.match(/\b(19|20)\d{2}\b/)) {
+          saleLines.push(clean);
+        } else {
+          narrativeOnlyLines.push(clean);
+        }
+      }
+      if (saleLines.length) {
+        bodyHtml = `<div class="comp-table-wrap"><table class="comp-table"><thead><tr><th>Comparable sale</th></tr></thead><tbody>${
+          saleLines.map((l, i) => `<tr class="${i%2===0?'row-even':'row-odd'}"><td>${l}</td></tr>`).join('')
+        }</tbody></table></div>`;
+        // Only pass truly narrative lines (intro/summary text) to paragraph renderer
+        nonTableLines = narrativeOnlyLines;
+      } else {
+        // No recognisable sale entries — render everything as paragraphs, no table
+        nonTableLines = contentLines;
       }
     }
 
