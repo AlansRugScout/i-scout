@@ -423,7 +423,20 @@
 
 <script>
 // ── STATE ──────────────────────────────────────────────────────
-let token = localStorage.getItem('3scouts_token');
+// Use cookies for token — survives PWA installs on iOS Safari
+function getCookie(name) {
+  const m = document.cookie.match('(^|;)\s*' + name + '\s*=\s*([^;]+)');
+  return m ? m.pop() : null;
+}
+function setCookie(name, value, days) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/;SameSite=Strict';
+}
+function deleteCookie(name) {
+  document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+}
+let token = getCookie('3scouts_token') || localStorage.getItem('3scouts_token');
 let accountData = null;
 const photos = [];
 
@@ -439,8 +452,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlToken = params.get('t');
   if (urlToken && /^[a-f0-9]{32}$/.test(urlToken)) {
     localStorage.setItem('3scouts_token', urlToken);
+    setCookie('3scouts_token', urlToken, 365); // 1 year cookie
     token = urlToken;
-    history.replaceState({}, '', '/app');
+    // Redirect to clean /app URL so if user adds to home screen,
+    // the icon always opens /app (not /app?t=...)
+    if (window.location.search) {
+      window.location.replace('/app');
+      return;
+    }
   }
 
   // Update greeting
@@ -567,6 +586,7 @@ function renderAccount() {
 
 function signOut() {
   localStorage.removeItem('3scouts_token');
+  deleteCookie('3scouts_token');
   token = null;
   accountData = null;
   location.reload();
