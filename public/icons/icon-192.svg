@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="20" fill="#2c1f0e"/>
+  <rect x="0" y="183" width="192" height="9" rx="4" fill="#c9922a"/>
+  <circle cx="66" cy="82" r="20" fill="#c9922a"/>
+  <circle cx="96" cy="82" r="20" fill="#e8b84b"/>
+  <circle cx="126" cy="82" r="20" fill="#c9922a" opacity="0.5"/>
+  <text x="96" y="130" font-family="Georgia,serif" font-size="26" font-weight="700" fill="#e8b84b" text-anchor="middle" letter-spacing="1">3scouts</text>
+</svg>
