@@ -562,9 +562,11 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('/sw.js').catch(console.error);
   }
 
-  // Check for token in URL (from email link)
-  const params = new URLSearchParams(window.location.search);
-  const urlToken = params.get('t');
+  // Check for token in URL — use hash (#t=) which iOS never strips
+  // Also check query param (?t=) as fallback
+  const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+  const queryParams = new URLSearchParams(window.location.search);
+  const urlToken = hashParams.get('t') || queryParams.get('t');
   if (urlToken && /^[a-f0-9]{32}$/.test(urlToken)) {
     // Save token in ALL storage methods for maximum persistence
     try { localStorage.setItem('3scouts_token', urlToken); } catch(e) {}
@@ -621,8 +623,8 @@ function updateManifestStartUrl(t) {
       name: '3scouts',
       short_name: '3scouts',
       description: 'Find it. Appraise it. Value it.',
-      start_url: '/app?t=' + t,
-      id: '/app?t=' + t,
+      start_url: '/app#t=' + t,
+      id: '/app#t=' + t,
       display: 'standalone',
       orientation: 'portrait',
       background_color: '#2c1f0e',
