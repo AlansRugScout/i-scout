@@ -457,16 +457,23 @@ document.addEventListener('DOMContentLoaded', () => {
     try { sessionStorage.setItem('3scouts_token', urlToken); } catch(e) {}
     token = urlToken;
 
-    // KEY FIX: Don't redirect away from the token URL.
-    // Instead, update the manifest to use this token as start_url
-    // so when installed, the PWA always opens with the token.
+    // Update manifest so install captures the token URL
     updateManifestStartUrl(urlToken);
 
-    // Show app immediately
+    // Show app immediately — DO NOT redirect, keep token in URL
+    // so if user installs NOW, iOS saves /app?t=token as start_url
     showApp();
     loadAccount();
     setupInstallPrompt();
     updateGreeting();
+
+    // Show install hint after 3 seconds
+    setTimeout(() => {
+      const banner = document.getElementById('install-banner');
+      if (banner && !localStorage.getItem('3scouts_install_dismissed')) {
+        banner.classList.add('visible');
+      }
+    }, 3000);
     return;
   }
 
