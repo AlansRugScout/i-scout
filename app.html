@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3scouts">
+<meta name="theme-color" content="#2c1f0e">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<title>3scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --parchment:#f5edd6;--parchment-dk:#e8d9b5;--ink:#2c1f0e;--ink-lt:#5a3e20;
+    --sepia:#8b6344;--sepia-lt:#b8945a;--gold:#c9922a;--gold-lt:#e8b84b;
+    --green:#1a4a2e;--green-pale:#eaf3de;--green-lt:#c0dd97;
+    --white:#fffdf7;--shadow:rgba(44,31,14,0.18);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html,body{height:100%;overflow:hidden;}
+  body{
+    background:var(--parchment);color:var(--ink);
+    font-family:'EB Garamond',Georgia,serif;font-size:16px;
+    display:flex;flex-direction:column;
+    padding-top:var(--safe-top);
+    padding-bottom:var(--safe-bottom);
+  }
+
+  /* ── APP HEADER ── */
+  .app-header{
+    background:var(--ink);border-bottom:2px solid var(--gold);
+    padding:0 1.25rem;height:52px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .app-logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+  .app-logo-dots{display:flex;gap:3px;}
+  .app-logo-dots span{display:block;width:7px;height:7px;border-radius:50%;}
+  .app-logo-text{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-lt);letter-spacing:0.04em;}
+  .app-logo-text em{font-style:normal;font-size:0.65rem;color:var(--gold);}
+  .header-account{font-family:'Cinzel',serif;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.6);text-decoration:none;cursor:pointer;background:none;border:none;}
+  .header-account:hover{color:var(--gold-lt);}
+
+  /* ── SCREENS ── */
+  .screen{flex:1;overflow-y:auto;display:none;flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* ── HOME SCREEN ── */
+  #screen-home{background:var(--parchment);}
+  .home-hero{
+    background:var(--ink);
+    background-image:linear-gradient(160deg,#1a0e05 0%,#2c1f0e 60%,#1a0e05 100%);
+    padding:1.75rem 1.25rem 2rem;text-align:center;flex-shrink:0;
+  }
+  .home-greeting{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:0.25rem;font-family:'Cinzel',serif;letter-spacing:0.05em;}
+  .home-tagline{font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:1.5rem;}
+
+  /* Big appraise button */
+  .appraise-btn{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    width:140px;height:140px;border-radius:50%;
+    background:linear-gradient(135deg,var(--gold) 0%,var(--gold-lt) 100%);
+    border:none;cursor:pointer;margin:0 auto 0.75rem;
+    box-shadow:0 0 0 8px rgba(201,146,42,0.15),0 8px 32px rgba(0,0,0,0.4);
+    transition:transform 0.15s,box-shadow 0.15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .appraise-btn:active{transform:scale(0.95);box-shadow:0 0 0 4px rgba(201,146,42,0.15),0 4px 16px rgba(0,0,0,0.4);}
+  .appraise-btn-icon{font-size:2.5rem;margin-bottom:4px;}
+  .appraise-btn-label{font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink);}
+  .appraise-hint{font-size:13px;color:rgba(255,255,255,0.5);margin-top:0.25rem;}
+
+  /* Usage pill */
+  .usage-pill{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,0.08);border:1px solid rgba(201,146,42,0.25);
+    border-radius:20px;padding:6px 14px;margin-top:1.25rem;
+    font-family:'Cinzel',serif;font-size:10px;font-weight:600;
+    letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.6);
+    cursor:pointer;
+  }
+  .usage-pill-count{color:var(--gold-lt);font-size:12px;}
+
+  /* Recent reports */
+  .home-reports{padding:1.25rem;flex:1;}
+  .home-reports-label{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--sepia);margin-bottom:0.75rem;}
+  .report-card{
+    background:var(--white);border:1px solid var(--parchment-dk);
+    border-left:3px solid var(--gold);border-radius:3px;
+    padding:0.85rem 1rem;margin-bottom:8px;
+    display:flex;align-items:center;gap:0.75rem;
+    text-decoration:none;color:var(--ink);
+    -webkit-tap-highlight-color:transparent;
+    transition:box-shadow 0.15s;
+  }
+  .report-card:active{box-shadow:0 2px 8px var(--shadow);}
+  .report-card-body{flex:1;min-width:0;}
+  .report-card-title{font-size:14px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
+  .report-card-meta{font-size:12px;color:var(--sepia);}
+  .report-card-arrow{color:var(--gold);font-size:1rem;flex-shrink:0;}
+  .empty-reports{font-size:15px;color:var(--sepia);font-style:italic;text-align:center;padding:2rem 0;}
+
+  /* ── SUBMIT SCREEN ── */
+  #screen-submit{background:var(--parchment);}
+  .submit-header{
+    background:var(--ink);border-bottom:1px solid rgba(201,146,42,0.3);
+    padding:1rem 1.25rem;flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .submit-header h2{font-family:'Cinzel',serif;font-size:0.95rem;font-weight:600;color:var(--gold-lt);}
+  .back-btn{background:none;border:none;color:rgba(255,255,255,0.6);font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;padding:0;}
+  .back-btn:hover{color:var(--gold-lt);}
+
+  .submit-body{flex:1;overflow-y:auto;padding:1.25rem;}
+
+  /* Photo area */
+  .photo-zone{
+    background:var(--ink);border:2px dashed rgba(201,146,42,0.4);
+    border-radius:6px;padding:1.5rem;text-align:center;
+    margin-bottom:1.25rem;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    transition:border-color 0.15s;
+  }
+  .photo-zone.has-photos{border-style:solid;border-color:var(--gold);}
+  .photo-zone-icon{font-size:2.5rem;margin-bottom:0.5rem;}
+  .photo-zone-label{font-family:'Cinzel',serif;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--gold);margin-bottom:0.25rem;}
+  .photo-zone-hint{font-size:13px;color:rgba(255,255,255,0.5);}
+  .photo-previews-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem;justify-content:center;}
+  .photo-thumb{position:relative;width:70px;height:70px;}
+  .photo-thumb img{width:70px;height:70px;object-fit:cover;border-radius:4px;border:2px solid var(--gold);}
+  .photo-thumb-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#8b2020;color:#fff;border:none;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;}
+
+  .form-group{margin-bottom:1.1rem;}
+  .form-label{display:block;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-lt);margin-bottom:5px;}
+  .form-label span{font-family:'EB Garamond',serif;font-weight:400;text-transform:none;letter-spacing:0;color:var(--sepia);}
+  textarea{
+    width:100%;background:var(--parchment);border:1px solid var(--sepia-lt);
+    border-radius:3px;padding:10px 12px;
+    font-family:'EB Garamond',serif;font-size:16px;color:var(--ink);
+    outline:none;resize:none;min-height:100px;
+    -webkit-appearance:none;
+    transition:border-color .15s;
+  }
+  textarea:focus{border-color:var(--gold);background:var(--white);}
+
+  .submit-action-btn{
+    width:100%;background:var(--gold);color:var(--ink);border:none;
+    padding:16px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;
+    letter-spacing:0.08em;text-transform:uppercase;border-radius:4px;
+    cursor:pointer;margin-top:0.5rem;
+    -webkit-tap-highlight-color:transparent;
+    transition:background .15s,transform .1s;
+  }
+  .submit-action-btn:active{transform:scale(0.98);}
+  .submit-action-btn:hover{background:var(--gold-lt);}
+  .submit-action-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+
+  /* Submit success */
+  .submit-success{display:none;text-align:center;padding:2.5rem 1.25rem;}
+  .submit-success-icon{font-size:3rem;margin-bottom:1rem;}
+  .submit-success h3{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--green);margin-bottom:0.75rem;}
+  .submit-success p{font-size:15px;color:var(--sepia);line-height:1.75;margin-bottom:1.25rem;}
+  .submit-success-btn{
+    display:inline-block;background:var(--ink);color:var(--gold-lt);
+    font-family:'Cinzel',serif;font-size:12px;font-weight:700;
+    letter-spacing:0.08em;text-transform:uppercase;
+    padding:12px 24px;border-radius:3px;cursor:pointer;border:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* ── ACCOUNT SCREEN ── */
+  #screen-account{background:var(--parchment);}
+  .account-top{
+    background:var(--ink);border-bottom:2px solid var(--gold);
+    padding:1.5rem 1.25rem 1.25rem;flex-shrink:0;
+  }
+  .account-name{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:600;color:var(--gold-lt);margin-bottom:2px;}
+  .account-email{font-size:13px;color:rgba(255,255,255,0.5);}
+  .account-body{padding:1.25rem;flex:1;overflow-y:auto;}
+
+  .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem;}
+  .stat-card{background:var(--white);border:1px solid var(--parchment-dk);border-top:3px solid var(--gold);border-radius:3px;padding:1rem;}
+  .stat-label{font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--sepia);margin-bottom:4px;}
+  .stat-value{font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--ink);line-height:1;}
+  .stat-sub{font-size:12px;color:var(--sepia);margin-top:3px;}
+  .usage-bar-track{height:6px;background:var(--parchment-dk);border-radius:3px;margin-top:8px;overflow:hidden;}
+  .usage-bar-fill{height:100%;border-radius:3px;transition:width 0.6s ease;}
+
+  .account-section-label{font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--sepia);margin:1.25rem 0 0.75rem;}
+  .account-action-btn{
+    width:100%;background:var(--gold);color:var(--ink);border:none;
+    padding:14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;
+    letter-spacing:0.08em;text-transform:uppercase;border-radius:3px;
+    cursor:pointer;margin-bottom:10px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .account-action-btn.secondary{background:transparent;border:1px solid var(--sepia-lt);color:var(--ink-lt);}
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav{
+    background:var(--ink);border-top:1px solid rgba(201,146,42,0.3);
+    display:flex;height:60px;flex-shrink:0;
+  }
+  .nav-tab{
+    flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;border:none;background:none;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    transition:background 0.15s;
+  }
+  .nav-tab:active{background:rgba(255,255,255,0.05);}
+  .nav-tab-icon{font-size:1.3rem;line-height:1;}
+  .nav-tab-label{font-family:'Cinzel',serif;font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.4);}
+  .nav-tab.active .nav-tab-label{color:var(--gold);}
+  .nav-tab.active .nav-tab-icon{filter:drop-shadow(0 0 4px rgba(232,184,75,0.6));}
+
+  /* ── LOGIN SCREEN ── */
+  #screen-login{
+    background:var(--ink);
+    background-image:linear-gradient(160deg,#1a0e05 0%,#2c1f0e 60%,#1a0e05 100%);
+    align-items:center;justify-content:center;padding:2rem;
+  }
+  .login-card{width:100%;max-width:380px;}
+  .login-logo{text-align:center;margin-bottom:2rem;}
+  .login-logo-dots{display:flex;gap:6px;justify-content:center;margin-bottom:0.75rem;}
+  .login-logo-dots span{display:block;width:12px;height:12px;border-radius:50%;}
+  .login-logo-text{font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--gold-lt);letter-spacing:0.06em;}
+  .login-logo-text em{font-style:normal;font-size:1rem;color:var(--gold);}
+  .login-tagline{font-size:14px;color:rgba(255,255,255,0.5);margin-top:0.25rem;font-family:'Cinzel',serif;letter-spacing:0.05em;}
+  .login-form-label{display:block;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+  .login-input{
+    width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(201,146,42,0.3);
+    border-radius:3px;padding:12px 14px;font-family:'EB Garamond',serif;
+    font-size:17px;color:var(--white);outline:none;margin-bottom:1rem;
+    -webkit-appearance:none;transition:border-color .15s;
+  }
+  .login-input:focus{border-color:var(--gold);background:rgba(255,255,255,0.12);}
+  .login-btn{
+    width:100%;background:var(--gold);color:var(--ink);border:none;
+    padding:15px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;
+    letter-spacing:0.08em;text-transform:uppercase;border-radius:3px;cursor:pointer;
+  }
+  .login-status{font-size:14px;color:rgba(255,255,255,0.6);text-align:center;margin-top:1rem;line-height:1.6;}
+  .login-status a{color:var(--gold);}
+  .login-error{color:#f87171;font-size:13px;text-align:center;margin-top:0.75rem;}
+
+  /* ── INSTALL BANNER ── */
+  .install-banner{
+    display:none;
+    background:var(--ink);border-bottom:1px solid var(--gold);
+    padding:0.75rem 1.25rem;flex-shrink:0;
+    align-items:center;gap:0.75rem;
+  }
+  .install-banner.visible{display:flex;}
+  .install-banner p{flex:1;font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5;}
+  .install-banner p strong{color:var(--gold-lt);}
+  .install-btn{background:var(--gold);color:var(--ink);border:none;font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:8px 14px;border-radius:3px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .install-dismiss{background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.2rem;cursor:pointer;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<!-- INSTALL BANNER -->
+<div class="install-banner" id="install-banner">
+  <p><strong>Add to Home Screen</strong> for one-tap appraisals and push notifications</p>
+  <button class="install-btn" id="install-btn">Install</button>
+  <button class="install-dismiss" id="install-dismiss">✕</button>
+</div>
+
+<!-- APP HEADER -->
+<div class="app-header" id="app-header" style="display:none;">
+  <a href="#" class="app-logo" onclick="showScreen('home');return false;">
+    <div class="app-logo-dots">
+      <span style="background:#c9922a;"></span>
+      <span style="background:#e8b84b;"></span>
+      <span style="background:#c9922a;opacity:0.5;"></span>
+    </div>
+    <span class="app-logo-text">3scouts<em>.com</em></span>
+  </a>
+  <button class="header-account" onclick="showScreen('account')">My Account</button>
+</div>
+
+<!-- ── LOGIN SCREEN ── -->
+<div class="screen active" id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-dots">
+        <span style="background:#c9922a;"></span>
+        <span style="background:#e8b84b;"></span>
+        <span style="background:#c9922a;opacity:0.5;"></span>
+      </div>
+      <div class="login-logo-text">3scouts<em>.com</em></div>
+      <div class="login-tagline">Find it. Appraise it. Value it.</div>
+    </div>
+
+    <div id="login-step-email">
+      <label class="login-form-label" for="login-email">Your email address</label>
+      <input class="login-input" type="email" id="login-email" placeholder="your@email.com" autocomplete="email">
+      <button class="login-btn" id="login-send-btn" onclick="sendAccessLink()">Send my access link →</button>
+      <p class="login-status">Enter the email on your 3scouts subscription.<br>We'll send you a secure link — no password needed.<br><br>Not a subscriber? <a href="https://www.3scouts.com/#brief" target="_blank">Start your free trial →</a></p>
+      <p class="login-error" id="login-error" style="display:none;"></p>
+    </div>
+
+    <div id="login-step-sent" style="display:none;text-align:center;padding:1rem 0;">
+      <div style="font-size:2.5rem;margin-bottom:1rem;">📬</div>
+      <p style="font-family:'Cinzel',serif;font-size:1rem;color:var(--gold-lt);margin-bottom:0.75rem;">Check your inbox</p>
+      <p style="font-size:14px;color:rgba(255,255,255,0.6);line-height:1.75;">Your access link is on its way from <strong style="color:rgba(255,255,255,0.8);">scout@3scouts.com</strong>. Tap the link in that email to open your account here.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── HOME SCREEN ── -->
+<div class="screen" id="screen-home">
+  <div class="home-hero">
+    <div class="home-greeting" id="home-greeting">Good morning</div>
+    <div class="home-tagline">Find it · Appraise it · Value it</div>
+    <button class="appraise-btn" onclick="showScreen('submit')" aria-label="Appraise an item">
+      <span class="appraise-btn-icon">📷</span>
+      <span class="appraise-btn-label">Appraise</span>
+    </button>
+    <div class="appraise-hint">Tap to photograph &amp; value any item</div>
+    <div class="usage-pill" id="usage-pill" onclick="showScreen('account')">
+      <span>Analyses remaining:</span>
+      <span class="usage-pill-count" id="usage-pill-count">—</span>
+    </div>
+  </div>
+  <div class="home-reports">
+    <div class="home-reports-label">Recent appraisals</div>
+    <div id="home-report-list"><p class="empty-reports">Loading…</p></div>
+  </div>
+</div>
+
+<!-- ── SUBMIT SCREEN ── -->
+<div class="screen" id="screen-submit">
+  <div class="submit-header">
+    <button class="back-btn" onclick="showScreen('home')">← Back</button>
+    <h2>Appraise an Item</h2>
+    <div style="width:60px;"></div>
+  </div>
+
+  <div class="submit-body">
+    <div id="submit-form-wrap">
+      <!-- Photo zone -->
+      <div class="photo-zone" id="photo-zone" onclick="triggerPhotoInput()">
+        <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoInput(this)">
+        <div class="photo-zone-icon">📷</div>
+        <div class="photo-zone-label">Add photos</div>
+        <div class="photo-zone-hint">Tap to use camera or choose from library</div>
+        <div class="photo-previews-row" id="photo-previews"></div>
+      </div>
+      <p style="font-size:12px;color:var(--sepia);font-style:italic;margin-bottom:1.1rem;">Front, back, any marks or hallmarks. Up to 5 photos — more is better.</p>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label class="form-label" for="submit-desc">Describe the item <span>— optional but helpful</span></label>
+        <textarea id="submit-desc" placeholder="What do you think it is? Any markings, maker's marks, signatures, hallmarks, or date indicators? Where did you find it?"></textarea>
+      </div>
+
+      <button class="submit-action-btn" id="submit-btn" onclick="submitAppraisal()">Get my appraisal →</button>
+      <div id="submit-err" style="display:none;background:#fcebeb;border:1px solid #f7c1c1;border-radius:3px;padding:0.75rem 1rem;margin-top:0.75rem;font-size:14px;color:#8b2020;"></div>
+    </div>
+
+    <div class="submit-success" id="submit-success">
+      <div class="submit-success-icon">✨</div>
+      <h3>On its way!</h3>
+      <p>Scout Two and Scout Three are examining your item now. Your full appraisal report will arrive by email — usually within the hour. We'll also send a push notification when it's ready.</p>
+      <button class="submit-success-btn" onclick="afterSubmit()">Back to home</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ACCOUNT SCREEN ── -->
+<div class="screen" id="screen-account">
+  <div class="account-top">
+    <div class="account-name" id="acct-name">My Account</div>
+    <div class="account-email" id="acct-email">Loading…</div>
+  </div>
+  <div class="account-body">
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-label">Analyses remaining</div>
+        <div class="stat-value" id="acct-remaining">—</div>
+        <div class="stat-sub" id="acct-plan">—</div>
+        <div class="usage-bar-track"><div class="usage-bar-fill" id="acct-bar" style="width:0%;background:var(--green);"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Reports submitted</div>
+        <div class="stat-value" id="acct-used">—</div>
+        <div class="stat-sub">this period</div>
+      </div>
+    </div>
+
+    <div class="account-section-label">Recent reports</div>
+    <div id="acct-reports"><p style="font-size:14px;color:var(--sepia);font-style:italic;">Loading…</p></div>
+
+    <div class="account-section-label">Account</div>
+    <button class="account-action-btn" onclick="showScreen('submit')">📷 &nbsp;Submit new item</button>
+    <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" target="_blank" style="display:block;">
+      <button class="account-action-btn secondary" style="width:100%;">Manage subscription →</button>
+    </a>
+    <button class="account-action-btn secondary" onclick="signOut()" style="margin-top:0.5rem;">Sign out</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav" id="bottom-nav" style="display:none;">
+  <button class="nav-tab active" id="tab-home" onclick="showScreen('home')">
+    <span class="nav-tab-icon">🏠</span>
+    <span class="nav-tab-label">Home</span>
+  </button>
+  <button class="nav-tab" id="tab-submit" onclick="showScreen('submit')">
+    <span class="nav-tab-icon">📷</span>
+    <span class="nav-tab-label">Appraise</span>
+  </button>
+  <button class="nav-tab" id="tab-account" onclick="showScreen('account')">
+    <span class="nav-tab-icon">👤</span>
+    <span class="nav-tab-label">Account</span>
+  </button>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────
+let token = localStorage.getItem('3scouts_token');
+let accountData = null;
+const photos = [];
+
+// ── INIT ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(console.error);
+  }
+
+  // Check for token in URL (from email link)
+  const params = new URLSearchParams(window.location.search);
+  const urlToken = params.get('t');
+  if (urlToken && /^[a-f0-9]{32}$/.test(urlToken)) {
+    localStorage.setItem('3scouts_token', urlToken);
+    token = urlToken;
+    // Redirect to clean /app URL so if user adds to home screen,
+    // the icon always opens /app (not /app?t=...)
+    if (window.location.search) {
+      window.location.replace('/app');
+      return;
+    }
+  }
+
+  // Update greeting
+  const hour = new Date().getHours();
+  document.getElementById('home-greeting').textContent =
+    hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  if (token) {
+    showApp();
+    loadAccount();
+  }
+
+  // Install prompt
+  setupInstallPrompt();
+});
+
+// ── APP SHOW/HIDE ──────────────────────────────────────────────
+function showApp() {
+  document.getElementById('screen-login').classList.remove('active');
+  document.getElementById('app-header').style.display = 'flex';
+  document.getElementById('bottom-nav').style.display = 'flex';
+  showScreen('home');
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  // Update bottom nav
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+}
+
+// ── LOGIN ──────────────────────────────────────────────────────
+async function sendAccessLink() {
+  const email = document.getElementById('login-email').value.trim();
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-send-btn');
+  if (!email) { showLoginError('Please enter your email address'); return; }
+  errEl.style.display = 'none';
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  try {
+    await fetch('/account/request-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    document.getElementById('login-step-email').style.display = 'none';
+    document.getElementById('login-step-sent').style.display = 'block';
+  } catch(e) {
+    btn.textContent = 'Send my access link →';
+    btn.disabled = false;
+    showLoginError('Something went wrong — please try again');
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ── ACCOUNT ───────────────────────────────────────────────────
+async function loadAccount() {
+  if (!token) return;
+  try {
+    const res = await fetch(`/account/data?t=${token}`);
+    if (res.status === 404 || res.status === 400) {
+      // Token invalid — sign out
+      signOut(); return;
+    }
+    accountData = await res.json();
+    renderAccount();
+  } catch(e) {
+    console.error('Account load error:', e);
+  }
+}
+
+function renderAccount() {
+  if (!accountData) return;
+  const { name, email, plan, deep_analyses_used, deep_analyses_limit, reports } = accountData;
+  const remaining = deep_analyses_limit - deep_analyses_used;
+  const pct = Math.max(0, Math.round((remaining / deep_analyses_limit) * 100));
+  const barColor = pct > 50 ? '#1a4a2e' : pct > 20 ? '#c9922a' : '#8b2020';
+  const firstName = name.split(' ')[0];
+
+  // Header greeting
+  document.getElementById('home-greeting').textContent =
+    (new Date().getHours() < 12 ? 'Good morning' :
+     new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening') + ', ' + firstName;
+
+  // Usage pill
+  document.getElementById('usage-pill-count').textContent = remaining;
+
+  // Account screen
+  document.getElementById('acct-name').textContent = name;
+  document.getElementById('acct-email').textContent = email;
+  document.getElementById('acct-remaining').textContent = remaining;
+  document.getElementById('acct-used').textContent = deep_analyses_used;
+  document.getElementById('acct-plan').textContent = plan;
+  document.getElementById('acct-bar').style.width = pct + '%';
+  document.getElementById('acct-bar').style.background = barColor;
+
+  // Recent reports on home
+  const homeList = document.getElementById('home-report-list');
+  const acctList = document.getElementById('acct-reports');
+  if (reports && reports.length) {
+    const cardsHtml = reports.map(r => `
+      <a href="/report/${r.report_token}" target="_blank" class="report-card">
+        <div class="report-card-body">
+          <div class="report-card-title">${r.listing_title || 'Untitled report'}</div>
+          <div class="report-card-meta">${new Date(r.completed_at).toLocaleDateString('en-IE',{day:'numeric',month:'short',year:'numeric'})}</div>
+        </div>
+        <span class="report-card-arrow">→</span>
+      </a>`).join('');
+    homeList.innerHTML = cardsHtml;
+    acctList.innerHTML = cardsHtml;
+  } else {
+    homeList.innerHTML = '<p class="empty-reports">No reports yet — tap Appraise to get started!</p>';
+    acctList.innerHTML = '<p style="font-size:14px;color:var(--sepia);font-style:italic;">No reports yet.</p>';
+  }
+}
+
+function signOut() {
+  localStorage.removeItem('3scouts_token');
+  token = null;
+  accountData = null;
+  location.reload();
+}
+
+// ── PHOTOS ────────────────────────────────────────────────────
+function triggerPhotoInput() {
+  if (photos.length >= 5) return;
+  document.getElementById('photo-input').click();
+}
+
+async function handlePhotoInput(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (photos.length >= 5) { input.value = ''; return; }
+  const dataUrl = await compressImage(file);
+  const idx = photos.length;
+  photos.push(dataUrl);
+  const previews = document.getElementById('photo-previews');
+  const wrap = document.createElement('div');
+  wrap.className = 'photo-thumb';
+  wrap.innerHTML = `<img src="${dataUrl}"><button class="photo-thumb-remove" onclick="removePhoto(${idx},this)">×</button>`;
+  previews.appendChild(wrap);
+  document.getElementById('photo-zone').classList.add('has-photos');
+  input.value = '';
+}
+
+function removePhoto(idx, btn) {
+  photos.splice(idx, 1);
+  btn.parentElement.remove();
+  if (photos.length === 0) document.getElementById('photo-zone').classList.remove('has-photos');
+}
+
+function compressImage(file, maxWidth=900, quality=0.82) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onerror = () => rej(new Error('Read failed'));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => rej(new Error('Load failed'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h*maxWidth/w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        res(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────
+async function submitAppraisal() {
+  if (photos.length === 0) {
+    showSubmitError('Please add at least one photo of the item.');
+    return;
+  }
+  const btn = document.getElementById('submit-btn');
+  const errEl = document.getElementById('submit-err');
+  errEl.style.display = 'none';
+  btn.textContent = 'Submitting…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/account/submit-valuation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        description: document.getElementById('submit-desc').value || 'Please identify and value this item from the photos provided.',
+        images: photos.slice(0, 5),
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('submit-form-wrap').style.display = 'none';
+      document.getElementById('submit-success').style.display = 'block';
+      loadAccount(); // Refresh usage count
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch(e) {
+    btn.textContent = 'Get my appraisal →';
+    btn.disabled = false;
+    showSubmitError(e.message || 'Something went wrong — please try again');
+  }
+}
+
+function showSubmitError(msg) {
+  const el = document.getElementById('submit-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function afterSubmit() {
+  // Reset form
+  photos.length = 0;
+  document.getElementById('photo-previews').innerHTML = '';
+  document.getElementById('photo-zone').classList.remove('has-photos');
+  document.getElementById('submit-desc').value = '';
+  document.getElementById('submit-btn').textContent = 'Get my appraisal →';
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-form-wrap').style.display = 'block';
+  document.getElementById('submit-success').style.display = 'none';
+  showScreen('home');
+}
+
+// ── INSTALL PROMPT ─────────────────────────────────────────────
+let deferredInstall = null;
+
+function setupInstallPrompt() {
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstall = e;
+    if (!localStorage.getItem('3scouts_install_dismissed')) {
+      document.getElementById('install-banner').classList.add('visible');
+    }
+  });
+
+  document.getElementById('install-btn').addEventListener('click', async () => {
+    if (deferredInstall) {
+      deferredInstall.prompt();
+      const { outcome } = await deferredInstall.userChoice;
+      if (outcome === 'accepted') {
+        document.getElementById('install-banner').classList.remove('visible');
+      }
+      deferredInstall = null;
+    }
+  });
+
+  document.getElementById('install-dismiss').addEventListener('click', () => {
+    localStorage.setItem('3scouts_install_dismissed', '1');
+    document.getElementById('install-banner').classList.remove('visible');
+  });
+}
+
+// Keyboard support — submit on Enter in email field
+document.getElementById('login-email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAccessLink();
+});
+</script>
+</body>
+</html>
