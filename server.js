@@ -481,7 +481,9 @@ app.post('/request-valuation', async (req, res) => {
         if (sub.deep_analyses_used >= sub.deep_analyses_limit) {
           return res.status(403).json({
             error: 'already_used',
-            message: 'You have already used your free valuation. Subscribe to get more analyses.'
+            name: name || 'there',
+            email: email,
+            message: 'You have already used your free valuation.'
           });
         }
         runDeepAnalysisFromDescription(sub.id, description, images || [])
