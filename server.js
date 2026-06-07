@@ -640,8 +640,26 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (confMatch) confidence = parseInt(confMatch[1]);
 
   let grade = null;
-  const gradeMatch = analysisText.match(/Overall\s+Grade[:\s]+([A-D][+-]?)/i);
-  if (gradeMatch) grade = gradeMatch[1].toUpperCase();
+  const gradeMatch =
+    analysisText.match(/Overall\s+Grade[:\s]+([A-D][+-]?)/i) ||
+    analysisText.match(/Overall\s+grade[:\s]+([A-D](?:\s+(?:plus|minus))?)/i) ||
+    analysisText.match(/overall\s+condition[^\n]{0,20}([A-D][+-])/i);
+  if (gradeMatch) {
+    let g = gradeMatch[1].trim()
+      .replace(/\s+plus$/i, '+')
+      .replace(/\s+minus$/i, '-');
+    grade = g.toUpperCase();
+  }
+  // Fallback: find most common component grade
+  if (!grade) {
+    const gradeMatches = [...analysisText.matchAll(/Grade:\s*([A-D][+-]?)/gi)];
+    if (gradeMatches.length >= 2) {
+      const grades = gradeMatches.map(m => m[1].toUpperCase());
+      const freq = {};
+      grades.forEach(g => freq[g] = (freq[g]||0) + 1);
+      grade = Object.entries(freq).sort((a,b) => b[1]-a[1])[0][0];
+    }
+  }
 
   let valuation = null;
   const valPatterns = [
@@ -654,12 +672,16 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /estimate[^€£$\d\n]{0,40}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /fair\s+value\s+range[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
     /range\s+of[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
-    /between[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:and|to|–|-)\s*[€£$][\d,]+)/i,
+    /between[^€£$\d\n]{0,20}([€£$][\d,]+)\s*(?:and|to)\s*([€£$][\d,]+)/i,
     /([€£$][\d,]+\s*(?:–|to)\s*[€£$][\d,]+)[^\n]{0,60}(?:fair|value|estimate|valuation)/i,
   ];
   for (const pat of valPatterns) {
     const m = analysisText.match(pat);
-    if (m) { valuation = m[1].trim(); break; }
+    if (m) {
+      // If two capture groups (from "between X and Y"), format with dash
+      valuation = m[2] ? m[1].trim() + ' – ' + m[2].trim() : m[1].trim();
+      break;
+    }
   }
 
   // ── Parse sections ───────────────────────────────────────────────
