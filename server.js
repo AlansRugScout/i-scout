@@ -1109,6 +1109,21 @@ function savePDF(){
 
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
 
+// ── PWA ROUTES ──────────────────────────────────────────────────
+app.get('/app', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'app.html'));
+});
+
+app.get('/manifest.json', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'manifest.json'));
+});
+
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(require('path').join(__dirname, 'public', 'sw.js'));
+});
+
 app.get('/my-account', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'my-account.html'));
 });
