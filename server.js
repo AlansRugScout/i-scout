@@ -629,10 +629,19 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (gradeMatch) grade = gradeMatch[1].toUpperCase();
 
   let valuation = null;
-  const valMatch = analysisText.match(/Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i)
-    || analysisText.match(/fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i)
-    || analysisText.match(/estimate[^€£$\d\n]{0,40}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i);
-  if (valMatch) valuation = valMatch[1].trim();
+  const valPatterns = [
+    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /estimated?\s+(?:fair\s+)?(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /(?:current|retail|auction|replacement)\s+(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /value[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /sell\s+for[^€£$\d\n]{0,20}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /estimate[^€£$\d\n]{0,40}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+  ];
+  for (const pat of valPatterns) {
+    const m = analysisText.match(pat);
+    if (m) { valuation = m[1].trim(); break; }
+  }
 
   // ── Parse sections ───────────────────────────────────────────────
   const sections = [];
