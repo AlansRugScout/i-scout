@@ -615,6 +615,21 @@ app.get('/topup-success', async (req, res) => {
 });
 
 // ── REPORT PAGE ───────────────────────────────────────────────────
+function formatPrice(raw) {
+  if (!raw) return '';
+  // "19995.00 GBP" → "£19,995"  |  "249.00 USD" → "$249"  |  "1200.00 EUR" → "€1,200"
+  const currencySymbols = { GBP: '£', USD: '$', EUR: '€', AUD: 'A$', CAD: 'C$' };
+  const m = String(raw).match(/^([\d,]+(?:\.\d+)?)\s*([A-Z]{3})?$/) ||
+            String(raw).match(/^([£€$])?([\d,]+(?:\.\d+)?)\s*([A-Z]{3})?$/);
+  if (!m) return raw;
+  const numStr = (m[1] || m[2] || '').replace(/,/g, '');
+  const num = parseFloat(numStr);
+  if (isNaN(num)) return raw;
+  const currCode = m[3] || m[2] || '';
+  const sym = currencySymbols[currCode] || (m[1] && ['£','€','$'].includes(m[1]) ? m[1] : '£');
+  return sym + num.toLocaleString('en-GB', { maximumFractionDigits: 0 });
+}
+
 function generateReportPage(report, images, isEbay, dateStr) {
   const analysisText = (report.analysis_text || '').replace(/^End of Report[^\n]*/im, '').trim();
 
@@ -637,6 +652,10 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /value[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /sell\s+for[^€£$\d\n]{0,20}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     /estimate[^€£$\d\n]{0,40}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /fair\s+value\s+range[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /range\s+of[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /between[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:and|to|–|-)\s*[€£$][\d,]+)/i,
+    /([€£$][\d,]+\s*(?:–|to)\s*[€£$][\d,]+)[^\n]{0,60}(?:fair|value|estimate|valuation)/i,
   ];
   for (const pat of valPatterns) {
     const m = analysisText.match(pat);
@@ -1004,11 +1023,11 @@ function generateReportPage(report, images, isEbay, dateStr) {
       ${isEbay && report.listing_price ? `
       <div class="summary-card">
         <div class="summary-label">Asking price</div>
-        <div class="price-big">${report.listing_price}</div>
+        <div class="price-big">${formatPrice(report.listing_price)}</div>
       </div>` : ''}
       <div class="summary-card">
         <div class="summary-label">Authenticity</div>
-        <div style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:${confColor};line-height:1;margin-bottom:6px;">${confidence !== null ? confidence + '%' : '—'}</div>
+        <div style="font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:${confidence >= 80 ? '#4ade80' : confidence >= 60 ? '#e8b84b' : '#f87171'};line-height:1;margin-bottom:6px;">${confidence !== null ? confidence + '%' : '—'}</div>
         <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;">${confidence !== null ? (confidence >= 80 ? '◈ Strong indicators of authenticity' : confidence >= 60 ? '⚠ Probable — some uncertainty' : '✕ Significant uncertainty') : dateStr}</div>
       </div>
       ${valuation ? `
