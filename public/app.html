@@ -451,30 +451,72 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const urlToken = params.get('t');
   if (urlToken && /^[a-f0-9]{32}$/.test(urlToken)) {
-    localStorage.setItem('3scouts_token', urlToken);
-    setCookie('3scouts_token', urlToken, 365); // 1 year cookie
+    // Save token in ALL storage methods for maximum persistence
+    try { localStorage.setItem('3scouts_token', urlToken); } catch(e) {}
+    setCookie('3scouts_token', urlToken, 365);
+    try { sessionStorage.setItem('3scouts_token', urlToken); } catch(e) {}
     token = urlToken;
-    // Redirect to clean /app URL so if user adds to home screen,
-    // the icon always opens /app (not /app?t=...)
-    if (window.location.search) {
-      window.location.replace('/app');
-      return;
-    }
+
+    // KEY FIX: Don't redirect away from the token URL.
+    // Instead, update the manifest to use this token as start_url
+    // so when installed, the PWA always opens with the token.
+    updateManifestStartUrl(urlToken);
+
+    // Show app immediately
+    showApp();
+    loadAccount();
+    setupInstallPrompt();
+    updateGreeting();
+    return;
   }
 
-  // Update greeting
-  const hour = new Date().getHours();
-  document.getElementById('home-greeting').textContent =
-    hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  // No URL token — try stored token
+  token = getCookie('3scouts_token') ||
+          (() => { try { return localStorage.getItem('3scouts_token'); } catch(e) { return null; } })() ||
+          (() => { try { return sessionStorage.getItem('3scouts_token'); } catch(e) { return null; } })();
 
+  updateGreeting();
   if (token) {
     showApp();
     loadAccount();
   }
-
-  // Install prompt
   setupInstallPrompt();
 });
+
+function updateGreeting() {
+  const hour = new Date().getHours();
+  const el = document.getElementById('home-greeting');
+  if (el) el.textContent = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+}
+
+function updateManifestStartUrl(t) {
+  // Dynamically update the manifest link so if user installs NOW,
+  // the PWA start_url includes their token
+  try {
+    const existing = document.querySelector('link[rel="manifest"]');
+    if (existing) existing.remove();
+    const blob = new Blob([JSON.stringify({
+      name: '3scouts',
+      short_name: '3scouts',
+      description: 'Find it. Appraise it. Value it.',
+      start_url: '/app?t=' + t,
+      id: '/app?t=' + t,
+      display: 'standalone',
+      orientation: 'portrait',
+      background_color: '#2c1f0e',
+      theme_color: '#2c1f0e',
+      icons: [
+        { src: '/icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+        { src: '/icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+      ]
+    })], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = url;
+    document.head.appendChild(link);
+  } catch(e) { console.log('Manifest update skipped:', e.message); }
+}
 
 // ── APP SHOW/HIDE ──────────────────────────────────────────────
 function showApp() {
