@@ -1500,6 +1500,23 @@ async function handleValueSubmit(e) {
       btn.textContent = 'Get my free valuation →';
       btn.disabled = false;
       document.getElementById('value-form').style.display = 'none';
+      const firstName = (data.name || '').split(' ')[0] || 'there';
+      document.getElementById('value-success').innerHTML = `
+        <div style="text-align:center;padding:0.5rem 0 1.5rem;">
+          <p style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--ink);margin-bottom:0.75rem;">Your free valuation is complete, ${firstName}</p>
+          <p style="font-size:15px;color:var(--sepia);line-height:1.75;margin-bottom:0.5rem;">You've already received your free 3scouts appraisal. To continue getting expert valuations and eBay alerts, start your 30-day free trial — <strong style="color:var(--ink);">no charge until day 31, cancel any time.</strong></p>
+          <p style="font-size:13px;color:var(--sepia);line-height:1.7;margin-bottom:1.5rem;">Your trial includes 20 Deep Analyses per month plus continuous eBay monitoring for whatever you collect.</p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+            <a href="#brief" onclick="document.getElementById('email').value='${data.email || ''}';document.getElementById('name').value='${data.name || ''}';" style="display:inline-block;background:var(--gold);color:var(--ink);font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Start my free trial →</a>
+            <a href="mailto:alan@3scouts.com?subject=Valuation%20query" style="display:inline-block;background:transparent;border:1px solid var(--gold);color:var(--ink-lt);font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Email us →</a>
+          </div>
+        </div>
+      `;
+      document.getElementById('value-success').style.display = 'block';
+      document.getElementById('value-success').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      btn.textContent = 'Get my free valuation →';
+      btn.disabled = false;
+      document.getElementById('value-form').style.display = 'none';
       document.getElementById('value-success').innerHTML = `
         <p style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--ink);margin-bottom:0.75rem;">You've already used your free valuation</p>
         <p style="font-size:15px;color:var(--sepia);line-height:1.7;margin-bottom:1.25rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. Your first 30 days are free.</p>
