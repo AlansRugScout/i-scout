@@ -1146,7 +1146,7 @@ app.post('/account/request-access', async (req, res) => {
     await pool.end();
     if (!result.rows.length) return; // Silently do nothing — don't reveal
     const { name, access_token } = result.rows[0];
-    const accountUrl = `${process.env.SITE_URL}/account?t=${access_token}`;
+    const accountUrl = `${process.env.SITE_URL}/app?t=${access_token}`;
     await resend.emails.send({
       from: '3scouts <scout@3scouts.com>',
       reply_to: 'alan@3scouts.com',
