@@ -355,6 +355,17 @@
       <div class="login-tagline">Find it. Appraise it. Value it.</div>
     </div>
 
+    <!-- Returning user — knows their email -->
+    <div id="login-step-returning" style="display:none;text-align:center;">
+      <p style="font-family:'Cinzel',serif;font-size:1rem;color:var(--gold-lt);margin-bottom:0.5rem;">Welcome back</p>
+      <p id="returning-email" style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:1.5rem;"></p>
+      <button class="login-btn" id="returning-send-btn" onclick="sendAccessLinkReturning()">Send my access link →</button>
+      <p style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:1rem;line-height:1.6;">We'll send a link to your email instantly.<br>One tap and you're back in.</p>
+      <button onclick="showNewEmailForm()" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:12px;margin-top:1rem;cursor:pointer;text-decoration:underline;">Not you? Use a different email</button>
+      <p class="login-error" id="returning-error" style="display:none;margin-top:0.75rem;"></p>
+    </div>
+
+    <!-- New user or different email -->
     <div id="login-step-email">
       <label class="login-form-label" for="login-email">Your email address</label>
       <input class="login-input" type="email" id="login-email" placeholder="your@email.com" autocomplete="email">
@@ -573,6 +584,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setCookie('3scouts_token', urlToken, 365);
     try { sessionStorage.setItem('3scouts_token', urlToken); } catch(e) {}
     token = urlToken;
+    // Save email for returning user flow — fetched after account loads
+    window._pendingSaveEmail = true;
 
     // Update manifest so install captures the token URL
     updateManifestStartUrl(urlToken);
@@ -603,6 +616,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (token) {
     showApp();
     loadAccount();
+  } else {
+    // Check for saved email to show returning user flow
+    const savedEmail = getCookie('3scouts_email') ||
+      (() => { try { return localStorage.getItem('3scouts_email'); } catch(e) { return null; } })();
+    if (savedEmail) {
+      document.getElementById('login-step-email').style.display = 'none';
+      document.getElementById('login-step-returning').style.display = 'block';
+      document.getElementById('returning-email').textContent = savedEmail;
+      window._returningEmail = savedEmail;
+    }
   }
   setupInstallPrompt();
 });
@@ -660,6 +683,35 @@ function showScreen(name) {
 }
 
 // ── LOGIN ──────────────────────────────────────────────────────
+async function sendAccessLinkReturning() {
+  const email = window._returningEmail;
+  if (!email) { showNewEmailForm(); return; }
+  const btn = document.getElementById('returning-send-btn');
+  const errEl = document.getElementById('returning-error');
+  errEl.style.display = 'none';
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  try {
+    await fetch('/account/request-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    document.getElementById('login-step-returning').style.display = 'none';
+    document.getElementById('login-step-sent').style.display = 'block';
+  } catch(e) {
+    btn.textContent = 'Send my access link →';
+    btn.disabled = false;
+    errEl.textContent = 'Something went wrong — please try again';
+    errEl.style.display = 'block';
+  }
+}
+
+function showNewEmailForm() {
+  document.getElementById('login-step-returning').style.display = 'none';
+  document.getElementById('login-step-email').style.display = 'block';
+}
+
 async function sendAccessLink() {
   const email = document.getElementById('login-email').value.trim();
   const errEl = document.getElementById('login-error');
@@ -708,6 +760,9 @@ async function loadAccount() {
 function renderAccount() {
   if (!accountData) return;
   const { name, email, plan, deep_analyses_used, deep_analyses_limit, reports } = accountData;
+  // Save email for returning user flow
+  try { localStorage.setItem('3scouts_email', email); } catch(e) {}
+  setCookie('3scouts_email', email, 365);
   const remaining = deep_analyses_limit - deep_analyses_used;
   const pct = Math.max(0, Math.round((remaining / deep_analyses_limit) * 100));
   const barColor = pct > 50 ? '#1a4a2e' : pct > 20 ? '#c9922a' : '#8b2020';
