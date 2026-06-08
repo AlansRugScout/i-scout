@@ -874,7 +874,12 @@ footer {
     </div>
     <div class="nav-logo-text">3scouts<em>.com</em></div>
   </a>
-  <div class="nav-links">
+  <button id="hamburger" onclick="toggleMobileNav()" style="display:none;background:none;border:none;cursor:pointer;padding:4px;flex-direction:column;gap:5px;align-items:center;justify-content:center;" aria-label="Menu">
+  <span style="display:block;width:22px;height:2px;background:var(--gold);border-radius:2px;transition:all 0.3s;"></span>
+  <span style="display:block;width:22px;height:2px;background:var(--gold);border-radius:2px;transition:all 0.3s;"></span>
+  <span style="display:block;width:22px;height:2px;background:var(--gold);border-radius:2px;transition:all 0.3s;"></span>
+</button>
+<div class="nav-links" id="nav-links">
     <a href="#how-it-works">How it works</a>
     <a href="#categories">Categories</a>
     <a href="#value">Value an item</a>
