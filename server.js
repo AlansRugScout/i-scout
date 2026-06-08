@@ -1110,6 +1110,70 @@ function savePDF(){
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
 
 // ── PWA ROUTES ──────────────────────────────────────────────────
+
+// Personal install URL — /install/TOKEN serves app with token baked into manifest
+app.get('/install/:token', async (req, res) => {
+  const { token } = req.params;
+  if (!token || !/^[a-f0-9]{32}$/.test(token)) return res.redirect('/app');
+  
+  // Verify token exists
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const result = await client.query('SELECT id FROM subscribers WHERE access_token = $1', [token]);
+    client.release();
+    await pool.end();
+    if (!result.rows.length) return res.redirect('/app');
+  } catch(e) { return res.redirect('/app'); }
+
+  // Serve a version of app.html with token pre-baked into a meta tag
+  const path = require('path');
+  const fs = require('fs');
+  let html = fs.readFileSync(path.join(__dirname, 'public', 'app.html'), 'utf8');
+  
+  // Inject token as a meta tag so it's always available regardless of storage
+  html = html.replace(
+    '<meta name="theme-color" content="#2c1f0e">',
+    `<meta name="theme-color" content="#2c1f0e">
+<meta name="3scouts-token" content="${token}">`
+  );
+  
+  // Serve with a token-specific manifest
+  html = html.replace(
+    '<link rel="manifest" href="/manifest.json">',
+    `<link rel="manifest" href="/manifest-${token}.json">`
+  );
+  
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
+});
+
+// Serve token-specific manifest
+app.get('/manifest-:token.json', (req, res) => {
+  const { token } = req.params;
+  if (!token || !/^[a-f0-9]{32}$/.test(token)) return res.redirect('/manifest.json');
+  
+  const manifest = {
+    name: '3scouts',
+    short_name: '3scouts',
+    description: 'Find it. Appraise it. Value it.',
+    start_url: `/install/${token}`,
+    id: `/install/${token}`,
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#2c1f0e',
+    theme_color: '#2c1f0e',
+    icons: [
+      { src: '/icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+    ]
+  };
+  res.setHeader('Cache-Control', 'no-cache');
+  res.json(manifest);
+});
+
+
 app.get('/app', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'app.html'));
 });
@@ -1146,7 +1210,7 @@ app.post('/account/request-access', async (req, res) => {
     await pool.end();
     if (!result.rows.length) return; // Silently do nothing — don't reveal
     const { name, access_token } = result.rows[0];
-    const accountUrl = `${process.env.SITE_URL}/app#t=${access_token}`;
+    const accountUrl = `${process.env.SITE_URL}/install/${access_token}`;
     await resend.emails.send({
       from: '3scouts <scout@3scouts.com>',
       reply_to: 'alan@3scouts.com',
