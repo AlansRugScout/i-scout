@@ -562,11 +562,11 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('/sw.js').catch(console.error);
   }
 
-  // Check for token in URL — use hash (#t=) which iOS never strips
-  // Also check query param (?t=) as fallback
+  // Check for token — priority: meta tag (baked in by server) > hash > query param
+  const metaToken = document.querySelector('meta[name="3scouts-token"]')?.getAttribute('content');
   const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
   const queryParams = new URLSearchParams(window.location.search);
-  const urlToken = hashParams.get('t') || queryParams.get('t');
+  const urlToken = metaToken || hashParams.get('t') || queryParams.get('t');
   if (urlToken && /^[a-f0-9]{32}$/.test(urlToken)) {
     // Save token in ALL storage methods for maximum persistence
     try { localStorage.setItem('3scouts_token', urlToken); } catch(e) {}
