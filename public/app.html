@@ -472,6 +472,7 @@
       <button class="account-action-btn secondary" style="width:100%;">Manage subscription →</button>
     </a>
     <button class="account-action-btn secondary" onclick="signOut()" style="margin-top:0.5rem;">Sign out</button>
+    <p style="font-size:12px;color:var(--sepia);text-align:center;margin-top:0.75rem;">Signed in as <span id="acct-signed-in-as" style="color:var(--ink-lt);"></span></p>
   </div>
 </div>
 
@@ -779,6 +780,8 @@ function renderAccount() {
   // Account screen
   document.getElementById('acct-name').textContent = name;
   document.getElementById('acct-email').textContent = email;
+  const signedInAs = document.getElementById('acct-signed-in-as');
+  if (signedInAs) signedInAs.textContent = email;
   document.getElementById('acct-remaining').textContent = remaining;
   document.getElementById('acct-used').textContent = deep_analyses_used;
   document.getElementById('acct-plan').textContent = plan;
@@ -790,7 +793,7 @@ function renderAccount() {
   const acctList = document.getElementById('acct-reports');
   if (reports && reports.length) {
     const cardsHtml = reports.map(r => `
-      <a href="/report/${r.report_token}" target="_blank" class="report-card">
+      <a href="${r.report_token ? '/report/' + r.report_token : '#'}" target="_blank" class="report-card" ${!r.report_token ? 'onclick="return false;"' : ''}>
         <div class="report-card-body">
           <div class="report-card-title">${r.listing_title || 'Untitled report'}</div>
           <div class="report-card-meta">${new Date(r.completed_at).toLocaleDateString('en-IE',{day:'numeric',month:'short',year:'numeric'})}</div>
