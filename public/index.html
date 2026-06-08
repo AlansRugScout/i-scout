@@ -1347,8 +1347,168 @@ footer {
     </div>
   </div>
 </section>
+<!-- FAQ SECTION -->
+<section id="faq" style="background:var(--parchment-dk);padding:4.5rem 2.5rem;border-bottom:1px solid var(--parchment-dk);">
+  <div class="container">
+    <div class="section-tag">Questions & answers</div>
+    <h2 class="section-title">Everything you need to know</h2>
 
-<!-- DISCLAIMER -->
+    <div style="max-width:760px;">
+
+      <!-- Q1 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>How accurate are the valuations?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>Very good — within a realistic market range. 3scouts uses Claude Advanced Vision, Anthropic's most capable image analysis model, cross-referenced against auction records and current market data. Valuations are expressed as a range (e.g. €800–€1,200) rather than a single figure, which is how professional appraisers work. The range reflects genuine market variation based on condition, provenance and buyer. Without physically examining an item, no appraisal can be absolute — but our assessments are consistently comparable to what you'd receive from a specialist dealer.</p>
+        </div>
+      </div>
+
+      <!-- Q2 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>Can it really identify fakes?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>Better than most. 3scouts analyses construction methods, materials, hallmarks, signatures, patina, and stylistic consistency against documented examples. It gives you an authenticity confidence percentage and flags specific red flags to verify in person. It won't replace physical examination by a specialist for high-value pieces — but it will tell you whether something is worth that examination, and what to look for when you get there.</p>
+        </div>
+      </div>
+
+      <!-- Q3 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>What kinds of items work best?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>Anything with visual identifying features — hallmarks, signatures, maker's marks, stylistic period indicators, or distinctive construction. Antique silver, ceramics, art, maps, coins, jewellery, watches, vintage collectables and sporting memorabilia all work exceptionally well. The more detail you provide in your description — and the better your photos — the more precise your report will be. That said, 3scouts has successfully appraised everything from Georgian rattles to modern earbuds.</p>
+        </div>
+      </div>
+
+      <!-- Q4 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>How is this different from a Google search?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>A Google search returns general information. 3scouts returns a specific professional assessment of your specific item — authenticity confidence, component-by-component condition grading, comparable recent sales, a fair value range, and a plain-English recommendation. It also watches eBay continuously on your behalf, alerting you the moment something matching your brief appears — something no search engine does. Think of it as having an expert on call, rather than a library.</p>
+        </div>
+      </div>
+
+      <!-- Q5 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>Is the free valuation really free — no card required?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>Completely free. No card, no trial, no catch. Submit your item, receive your full Deep Analysis report by email, and decide for yourself whether 3scouts is right for you. If you'd like more valuations or want Scout One watching eBay on your behalf, that's when a subscription starts — with a 30-day free trial and no charge until day 31.</p>
+        </div>
+      </div>
+
+      <!-- Q6 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>How quickly will I receive my report?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>Usually within the hour — often within minutes. Your report arrives by email as soon as the analysis is complete, with a link to your full branded report page. Subscribers also receive a push notification via the 3scouts app the moment it's ready.</p>
+        </div>
+      </div>
+
+      <!-- Q7 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>What if I disagree with the valuation?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>That's entirely reasonable — valuations involve judgement, and physical examination can reveal details photographs can't. If you believe the assessment is significantly off, email <a href="mailto:alan@3scouts.com" style="color:var(--gold);">alan@3scouts.com</a> with your reasoning. We take feedback seriously and use it to continuously improve. We'd also always recommend verifying high-value finds with a specialist before purchasing or selling.</p>
+        </div>
+      </div>
+
+      <!-- Q8 -->
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span>Can I cancel my subscription easily?</span>
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-a">
+          <p>One click, any time, no questions asked. Manage your subscription at any time through your account — there are no cancellation fees, no notice periods, and no awkward phone calls. We believe if 3scouts isn't delivering value, you shouldn't be paying for it.</p>
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div style="background:var(--white);border:1px solid var(--parchment-dk);border-left:4px solid var(--gold);border-radius:3px;padding:1.25rem 1.5rem;margin-top:1.5rem;">
+        <p style="font-size:15px;color:var(--ink-lt);line-height:1.75;margin:0;">Something not covered here? Email us at <a href="mailto:alan@3scouts.com" style="color:var(--gold);font-weight:500;">alan@3scouts.com</a> — we respond to every message personally, usually the same day.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+.faq-item {
+  background: var(--white);
+  border: 1px solid var(--parchment-dk);
+  border-radius: 3px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.faq-item:hover { box-shadow: 0 2px 10px var(--shadow); }
+.faq-item.open { border-color: var(--gold); }
+.faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  gap: 1rem;
+}
+.faq-icon {
+  font-size: 1.4rem;
+  color: var(--gold);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  font-weight: 300;
+}
+.faq-item.open .faq-icon { transform: rotate(45deg); }
+.faq-a {
+  display: none;
+  padding: 0 1.25rem 1.1rem;
+  border-top: 1px solid var(--parchment-dk);
+}
+.faq-item.open .faq-a { display: block; }
+.faq-a p {
+  font-size: 15.5px;
+  color: var(--ink-lt);
+  line-height: 1.8;
+  margin: 0.75rem 0 0;
+}
+@media (max-width: 640px) {
+  .faq-q { font-size: 12px; padding: 0.875rem 1rem; }
+  .faq-a { padding: 0 1rem 1rem; }
+}
+</style>
+
+<script>
+function toggleFaq(el) {
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+  if (!isOpen) el.classList.add('open');
+}
+</script>
+  <!-- DISCLAIMER -->
 <div class="disclaimer-section">
   <div class="container">
     <div class="disclaimer-inner">
