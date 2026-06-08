@@ -654,13 +654,19 @@ function generateReportPage(report, images, isEbay, dateStr) {
   }
   // Fallback: find most common component grade
   if (!grade) {
-    const gradeMatches = [...analysisText.matchAll(/Grade:\s*([A-D][+-]?)/gi)];
+    const gradeMatches = [...analysisText.matchAll(/[Gg]rade[:\s]+([A-D][+-]?)/g)];
     if (gradeMatches.length >= 2) {
       const grades = gradeMatches.map(m => m[1].toUpperCase());
       const freq = {};
       grades.forEach(g => freq[g] = (freq[g]||0) + 1);
       grade = Object.entries(freq).sort((a,b) => b[1]-a[1])[0][0];
     }
+  }
+  // Final fallback: look for any letter grade mentioned with condition words
+  if (!grade) {
+    const condMatch = analysisText.match(/condition[^\n]{0,30}([A-D][+-]?)[^\w]/i)
+      || analysisText.match(/([A-D][+-]?)\s*[—–-]\s*(?:excellent|very good|good|fair|poor)/i);
+    if (condMatch) grade = condMatch[1].toUpperCase();
   }
 
   let valuation = null;
@@ -821,11 +827,16 @@ function generateReportPage(report, images, isEbay, dateStr) {
       const introLines = [];
       for (const l of contentLines) {
         const clean = l
-          .replace(/^(First|Second|Third|Fourth|Fifth|Sixth)\s+comparable[:.]\s*/i,'')
-          .replace(/^Comparable\s+\d+[:.]\s*/i,'')
+          .replace(/^(First|Second|Third|Fourth|Fifth|Sixth)\s+comparable[:..]\s*/i,'')
+          .replace(/^Comparable\s+\d+[:..]\s*/i,'')
           .replace(/^[\d]+\.\s*/,'')
           .replace(/\*\*/g,'').trim();
-        if (clean.match(/[£€$]/) || clean.match(/\b(19|20)\d{2}\b/)) {
+        if (!clean) continue;
+        const hasPrice = clean.match(/[£€$][\d,]+/);
+        const hasYear = clean.match(/\b(19|20)\d{2}\b/);
+        const hasAuction = clean.match(/Christie|Sotheby|Bonhams|Phillips|Lyon|Woolley|Whyte|Adam|eBay|auction|gallery|galleries/i);
+        const isSaleEntry = hasPrice && (hasYear || hasAuction);
+        if (isSaleEntry && clean.length <= 200) {
           saleLines.push(clean);
         } else if (clean.length > 15) {
           introLines.push(clean);
@@ -833,10 +844,9 @@ function generateReportPage(report, images, isEbay, dateStr) {
       }
 
       const tableRows = saleLines.map((l, i) => {
-        // Try to extract price for display
-        const priceMatch = l.match(/([£€$][\d,]+)/);
-        const price = priceMatch ? priceMatch[1] : '';
-        const desc = l.replace(/([£€$][\d,]+)/g,'').replace(/\s+/g,' ').trim();
+        const allPrices = [...l.matchAll(/[£€$][\d,]+/g)];
+        const price = allPrices.length ? allPrices[allPrices.length - 1][0] : '';
+        const desc = price ? l.slice(0, l.lastIndexOf(price)).trim().replace(/[,–-]\s*$/, '') + l.slice(l.lastIndexOf(price) + price.length).trim() : l;
         return `<tr>
           <td>${desc}</td>
           <td class="price">${price}</td>
