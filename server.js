@@ -1017,7 +1017,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   .footer-logo{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-lt);text-decoration:none;}
   .footer-right{font-size:12px;color:rgba(255,255,255,0.35);}
   @media print{nav{display:none;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
-  @media(max-width:600px){nav{padding:0 1.25rem;}.container{padding:0 1.25rem;}.val-box{flex-direction:column;gap:1.5rem;}.report-header{padding:2rem 1.25rem 1.5rem;}.grade-name{min-width:110px;}.grade-score{min-width:100px;font-size:11px;}}
+  @media(max-width:600px){nav{padding:0 1.25rem;}.container{padding:0 1.25rem;}.val-box{flex-direction:column;gap:1.5rem;}.report-header{padding:2rem 1.25rem 1.5rem;}.grade-name{min-width:110px;}.grade-score{min-width:100px;font-size:11px;}.rpt-section{padding:1.25rem 0;}.rpt-section h2{font-size:0.8rem;letter-spacing:0.03em;padding-right:0.5rem;}.summary-grid{grid-template-columns:1fr 1fr;}.report-header h1{font-size:1.1rem;}}
 </style>
 </head>
 <body>
