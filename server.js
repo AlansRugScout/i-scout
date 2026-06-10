@@ -276,7 +276,14 @@ app.post('/create-checkout-session', async (req, res) => {
     dealer:    process.env.STRIPE_PRICE_DEALER,
   };
 
-  const priceId = priceMap[plan];
+  // Use GBP prices for UK subscribers if available
+  const isUK = (territories || '').includes('EBAY_GB') && !(territories || '').includes('EBAY_IE');
+  const gbpMap = {
+    trial:     process.env.STRIPE_PRICE_TRIAL_GBP,
+    collector: process.env.STRIPE_PRICE_COLLECTOR_GBP,
+    dealer:    process.env.STRIPE_PRICE_DEALER_GBP,
+  };
+  const priceId = (isUK && gbpMap[plan]) ? gbpMap[plan] : priceMap[plan];
   if (!priceId) return res.status(400).json({ error: 'Invalid plan selected' });
 
   const planLabels = {
