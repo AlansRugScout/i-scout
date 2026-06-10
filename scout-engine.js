@@ -512,9 +512,9 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
 
     // Save to database
     const result = await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
-      [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText]
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_url, listing_price, listing_image, analysis_text, report_token, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING id, report_token`,
+      [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText, require('crypto').randomBytes(16).toString('hex')]
     );
     const reportId = result.rows[0].id;
 
@@ -525,7 +525,7 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
     );
 
     // Send Deep Analysis email with report link
-    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId);
+    await sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId, reportToken);
 
     console.log(`Deep Analysis completed for ${subscriber.email} — ${listing.title}`);
 
@@ -666,9 +666,9 @@ function buildComparableTable(rows) {
 }
 
 
-async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId) {
+async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl, reportId, reportToken) {
   const price = `${listing.price?.value} ${listing.price?.currency}`;
-  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
+  const reportUrl = `${process.env.SITE_URL}/report/${reportToken || reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
   await resend.emails.send({
@@ -715,8 +715,8 @@ async function sendDeepAnalysisEmail(subscriber, listing, analysisText, imageUrl
 }
 
 
-async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId) {
-  const reportUrl = `${process.env.SITE_URL}/report/${reportId}`;
+async function sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken) {
+  const reportUrl = `${process.env.SITE_URL}/report/${reportToken || reportId}`;
   const dateStr = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
   const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
 
@@ -856,9 +856,9 @@ Be specific, expert and honest. Note that without physically examining the item,
     const firstImage = imageDataUrls && imageDataUrls[0] ? imageDataUrls[0] : null;
     const allImages = imageDataUrls && imageDataUrls.length > 0 ? JSON.stringify(imageDataUrls) : null;
     const result = await client.query(
-      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, completed_at)
-       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
-      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 100), allImages || firstImage, analysisText]
+      `INSERT INTO deep_analyses (subscriber_id, ebay_item_id, listing_title, listing_image, analysis_text, report_token, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, report_token`,
+      [subscriberId, 'valuation-' + Date.now(), description.substring(0, 200), allImages || firstImage, analysisText, require('crypto').randomBytes(16).toString('hex')]
     );
     const reportId = result.rows[0].id;
 
@@ -869,7 +869,7 @@ Be specific, expert and honest. Note that without physically examining the item,
     );
 
     // Send notification email with report link
-    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId);
+    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
 
     // Queue follow-up email in database — survives server restarts
     if (!subscriber.active || subscriber.plan === 'Free Valuation') {
