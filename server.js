@@ -843,7 +843,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
         const hasYear = clean.match(/\b(19|20)\d{2}\b/);
         const hasAuction = clean.match(/Christie|Sotheby|Bonhams|Phillips|Lyon|Woolley|Whyte|Adam|eBay|auction|gallery|galleries/i);
         const isSaleEntry = hasPrice && (hasYear || hasAuction);
-        if (isSaleEntry && clean.length <= 200) {
+        if (isSaleEntry && clean.length <= 120) {
           saleLines.push(clean);
         } else if (clean.length > 15) {
           introLines.push(clean);
