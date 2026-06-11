@@ -861,6 +861,7 @@ Be specific, expert and honest. Note that without physically examining the item,
       [subscriberId, 'valuation-' + Date.now(), description.substring(0, 200), allImages || firstImage, analysisText, require('crypto').randomBytes(16).toString('hex')]
     );
     const reportId = result.rows[0].id;
+    const reportToken = result.rows[0].report_token;
 
     // Update usage count
     await client.query(
