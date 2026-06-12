@@ -1228,6 +1228,7 @@ app.post('/account/request-access', async (req, res) => {
     if (!result.rows.length) return; // Silently do nothing — don't reveal
     const { name, access_token } = result.rows[0];
     const accountUrl = `${process.env.SITE_URL}/install/${access_token}`;
+    const appUrl = `3scouts://login?token=${access_token}`;
     await resend.emails.send({
       from: '3scouts <scout@3scouts.com>',
       reply_to: 'alan@3scouts.com',
@@ -1242,6 +1243,8 @@ app.post('/account/request-access', async (req, res) => {
           <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
             <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Click below to access your 3scouts account — check your remaining analyses, submit items for valuation, and view your recent reports.</p>
             <a href="${accountUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Go to my account →</a>
+            <p style="font-size:13px;color:#8b6344;margin:1rem 0 0.25rem;line-height:1.6;">Using the 3scouts app on your phone?</p>
+            <a href="${appUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;border:1px solid #c9922a;">Open in 3scouts app →</a>
             <p style="font-size:13px;color:#8b6344;margin-top:1.25rem;line-height:1.6;">This link is personal to your account — please don't share it. It doesn't expire.</p>
           </div>
           <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
