@@ -1304,6 +1304,10 @@ app.post('/account/verify-code', (req, res) => {
 
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
 
+app.get('/privacy', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'privacy.html'));
+});
+
 app.get('/account', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'account.html'));
 });
