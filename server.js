@@ -17,6 +17,16 @@ const PORT = process.env.PORT || 3000;
 const resend = new Resend(process.env.RESEND_API_KEY);
 const STRIPE_PORTAL_URL = 'https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00';
 
+// In-memory store for app login codes (email -> {code, accessToken, expires})
+// Short-lived (10 min) so no DB table needed
+const loginCodes = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, data] of loginCodes.entries()) {
+    if (data.expires < now) loginCodes.delete(email);
+  }
+}, 60 * 1000);
+
 // ── INITIALISE DATABASE ───────────────────────────────────────────
 initDatabase().catch(err => console.error('DB init error:', err.message));
 
@@ -1229,6 +1239,14 @@ app.post('/account/request-access', async (req, res) => {
     const { name, access_token } = result.rows[0];
     const accountUrl = `${process.env.SITE_URL}/install/${access_token}`;
     const appUrl = `3scouts://login?token=${access_token}`;
+
+    // Generate 6-digit code for native app login
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    loginCodes.set(email.toLowerCase().trim(), {
+      code,
+      accessToken: access_token,
+      expires: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
     await resend.emails.send({
       from: '3scouts <scout@3scouts.com>',
       reply_to: 'alan@3scouts.com',
@@ -1243,8 +1261,12 @@ app.post('/account/request-access', async (req, res) => {
           <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
             <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Click below to access your 3scouts account — check your remaining analyses, submit items for valuation, and view your recent reports.</p>
             <a href="${accountUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Go to my account →</a>
-            <p style="font-size:13px;color:#8b6344;margin:1rem 0 0.25rem;line-height:1.6;">Using the 3scouts app on your phone?</p>
-            <a href="${appUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;border:1px solid #c9922a;">Open in 3scouts app →</a>
+            <div style="margin-top:1.5rem;padding:1.25rem;background:#2c1f0e;border-radius:4px;text-align:center;">
+              <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 8px;text-transform:uppercase;">Using the 3scouts app?</p>
+              <p style="font-size:13px;color:rgba(255,253,247,0.6);margin:0 0 10px;">Enter this code to sign in:</p>
+              <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#e8b84b;margin:0;font-family:Georgia,serif;">${code}</p>
+              <p style="font-size:11px;color:rgba(255,253,247,0.35);margin:10px 0 0;">Expires in 10 minutes</p>
+            </div>
             <p style="font-size:13px;color:#8b6344;margin-top:1.25rem;line-height:1.6;">This link is personal to your account — please don't share it. It doesn't expire.</p>
           </div>
           <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
@@ -1256,6 +1278,28 @@ app.post('/account/request-access', async (req, res) => {
   } catch(err) {
     console.error('Account access email error:', err.message);
   }
+});
+
+// Verify 6-digit code from app login screen -> return access token
+app.post('/account/verify-code', (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Email and code required' });
+
+  const entry = loginCodes.get(email.toLowerCase().trim());
+  if (!entry) {
+    return res.status(400).json({ error: 'Code expired or not found. Please request a new code.' });
+  }
+  if (entry.expires < Date.now()) {
+    loginCodes.delete(email.toLowerCase().trim());
+    return res.status(400).json({ error: 'Code expired. Please request a new code.' });
+  }
+  if (entry.code !== String(code).trim()) {
+    return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
+  }
+
+  // Success — consume the code and return token
+  loginCodes.delete(email.toLowerCase().trim());
+  res.json({ success: true, token: entry.accessToken });
 });
 
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
