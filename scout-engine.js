@@ -193,6 +193,7 @@ Rules:
 - Do NOT add condition words
 - Do NOT add words about accessories like "box", "papers", "bracelet"
 - Keep it as simple as possible — what would a seller put in their listing title?
+- If the description is primarily about a specific NAMED PERSON (a historical figure, celebrity, politician, or author — e.g. "Michael Collins", "Winston Churchill"), wrap that full name in double quotes so it is searched as an exact phrase. This prevents matching unrelated people who share a surname (e.g. searching "Michael Collins" should not match "Joan Collins").
 
 Examples:
 "Squale 1521 or 1545 Blue Dial Dive Watch on Stainless Steel Bracelet with box and papers" → "Squale 1521 1545 blue"
@@ -201,8 +202,10 @@ Examples:
 "porcelain ceramic pig piglet figurine shelf collectable" → "pig figurine ceramic"
 "Mark O Neill paintings" → "Mark O Neill painting"
 "Persian rug antique tribal wool hand knotted" → "Persian rug antique"
+"Anything related to Michael Collins, the Irish patriot" → "\"Michael Collins\""
+"Winston Churchill memorabilia, signed photos or letters" → "\"Winston Churchill\" signed"
 
-Return ONLY the keywords, no explanation, no punctuation.`;
+Return ONLY the keywords, no explanation, and preserve any double quotes exactly as needed.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -210,7 +213,12 @@ Return ONLY the keywords, no explanation, no punctuation.`;
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const keywords = response.content[0].text.trim().replace(/['"]/g, '');
+    // Preserve double quotes (for exact phrase matching) but strip stray single quotes
+    let keywords = response.content[0].text.trim().replace(/'/g, '');
+    // Remove any wrapping quotes around the entire string if the AI quoted everything
+    if (keywords.startsWith('"') && keywords.endsWith('"') && keywords.indexOf('"', 1) === keywords.length - 1) {
+      // entire string is one quoted phrase - keep as is, this is intentional
+    }
     console.log(`Smart keywords for "${subscriber.description?.substring(0, 40)}": "${keywords}"`);
     return keywords;
   } catch (err) {
