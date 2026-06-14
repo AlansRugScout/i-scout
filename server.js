@@ -151,20 +151,20 @@ async function sendWelcomeEmail(data) {
   const description = data.description || data.category;
 
   const trialEndDate = new Date();
-  trialEndDate.setDate(trialEndDate.getDate() + 30);
+  trialEndDate.setDate(trialEndDate.getDate() + 7);
   const trialEndFormatted = trialEndDate.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: email,
-    subject: `Your 3scouts 30-day free trial is active`,
+    subject: `Your 3scouts 7-day free trial is active`,
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
 
         <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
           <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Welcome</p>
-          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your 30-day free trial is active</h2>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your 7-day free trial is active</h2>
           <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">${plan}</p>
         </div>
 
@@ -183,7 +183,7 @@ async function sendWelcomeEmail(data) {
           <div style="background:#f5edd6;border:1px solid #e8d9b5;border-left:4px solid #c9922a;padding:1rem 1.25rem;margin-bottom:1.25rem;border-radius:0 3px 3px 0;">
             <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 0.5rem;">Your free trial</p>
             <p style="font-size:14px;color:#2c1f0e;line-height:1.75;margin:0;">
-              Your trial runs until <strong>${trialEndFormatted}</strong>. We'll send you a reminder 7 days before it ends so there are no surprises.<br><br>
+              Your trial runs until <strong>${trialEndFormatted}</strong>. We'll send you a reminder before it ends so there are no surprises.<br><br>
               If you decide 3scouts isn't for you, cancel any time before <strong>${trialEndFormatted}</strong> and you won't be charged a penny. Cancelling takes one click — no forms, no phone calls, no questions asked.
             </p>
           </div>
@@ -321,7 +321,7 @@ app.post('/create-checkout-session', async (req, res) => {
         frequency:   frequency || 'immediate',
       },
       subscription_data: {
-        ...(plan === 'trial' ? { trial_period_days: 30 } : {}),
+        ...(plan === 'trial' ? { trial_period_days: 7 } : {}),
         metadata: {
           plan:     planLabels[plan],
           name:     name || '',
