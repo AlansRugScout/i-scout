@@ -823,8 +823,16 @@ async function runDeepAnalysisFromDescription(subscriberId, description, imageDa
     for (const dataUrl of (imageDataUrls || []).slice(0, 5)) {
       const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (matches) {
-        console.log(`  Image: mime=${matches[1]} size=${matches[2].length} chars`);
-        imageContents.push({ type: 'image', source: { type: 'base64', media_type: matches[1], data: matches[2] } });
+        const base64Data = matches[2];
+        const sizeChars = base64Data.length;
+        console.log(`  Image: mime=${matches[1]} size=${sizeChars} chars`);
+        // Anthropic limit is ~5MB per image (base64 ~6.7M chars)
+        // If image is too large, skip it with a warning
+        if (sizeChars > 5000000) {
+          console.log(`  ⚠ Image too large (${Math.round(sizeChars/1000)}KB base64) — skipping. Ask user to reduce photo size.`);
+          continue;
+        }
+        imageContents.push({ type: 'image', source: { type: 'base64', media_type: matches[1], data: base64Data } });
       }
     }
     console.log(`runDeepAnalysis: sending ${imageContents.length} image(s) to Claude`);
