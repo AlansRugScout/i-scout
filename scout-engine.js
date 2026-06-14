@@ -837,6 +837,39 @@ async function runDeepAnalysisFromDescription(subscriberId, description, imageDa
     }
     console.log(`runDeepAnalysis: sending ${imageContents.length} image(s) to Claude`);
 
+    // If all images were too large, send a helpful error email
+    if (imageContents.length === 0) {
+      console.log(`runDeepAnalysis: no usable images for ${subscriber.email} — sending error notification`);
+      await resend.emails.send({
+        from: '3scouts <scout@3scouts.com>',
+        to: subscriber.email,
+        subject: 'Your 3scouts appraisal — photos too large',
+        html: `
+          <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+            <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+              <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Appraisal Request</p>
+              <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">We couldn't process your photos</h2>
+            </div>
+            <div style="padding:1.5rem;">
+              <p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin-bottom:1rem;">Unfortunately the photos you submitted were too large for our system to process. This usually happens when photos are taken at full resolution from a camera roll.</p>
+              <p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin-bottom:1rem;"><strong>To resubmit successfully, please try one of the following:</strong></p>
+              <ul style="font-size:15px;color:#5a3e20;line-height:1.8;padding-left:1.5rem;margin-bottom:1rem;">
+                <li>Take photos directly with your camera when submitting (rather than uploading from your gallery)</li>
+                <li>Reduce the resolution of your photos before uploading — most phones have a "resize" option when sharing</li>
+                <li>Submit fewer photos — 1-2 clear photos work better than 5 large ones</li>
+              </ul>
+              <p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin-bottom:1.5rem;">Your free valuation credit has <strong>not</strong> been used — please resubmit and we'll get your appraisal underway.</p>
+              <a href="https://www.3scouts.com/#value" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Resubmit your photos →</a>
+            </div>
+            <div style="padding:0.75rem 1.5rem;background:#e8d9b5;font-size:12px;color:#8b6344;">
+              Questions? Email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
+            </div>
+          </div>
+        `,
+      });
+      return;
+    }
+
     const prompt = `You are an expert antiques and collectables appraiser for 3scouts.com. The service is based in Ireland and primarily serves European and UK collectors.
 
 A subscriber has submitted ${imageContents.length} photo${imageContents.length > 1 ? 's' : ''} of a SINGLE item they want appraised and valued. All photos are of the same item — some may show the front, back, details or markings of the same piece. Do not treat them as separate items.
@@ -864,7 +897,43 @@ Be specific, expert and honest. Note that without physically examining the item,
           { type: 'text', text: prompt }
         ]
       }]
+    }).catch(async (err) => {
+      // If Claude rejects the images, send helpful error email
+      if (err.message && err.message.includes('Could not process image')) {
+        console.log(`runDeepAnalysis: Claude rejected images for ${subscriber.email} — sending error notification`);
+        await resend.emails.send({
+          from: '3scouts <scout@3scouts.com>',
+          to: subscriber.email,
+          subject: 'Your 3scouts appraisal — please resubmit with smaller photos',
+          html: `
+            <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+              <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+                <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Appraisal Request</p>
+                <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">We couldn't process your photos</h2>
+              </div>
+              <div style="padding:1.5rem;">
+                <p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin-bottom:1rem;">Unfortunately the photos you submitted were too high resolution for our system to process. This typically happens when uploading full-resolution photos from your camera roll.</p>
+                <p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin-bottom:1rem;"><strong>Please resubmit using one of these methods:</strong></p>
+                <ul style="font-size:15px;color:#5a3e20;line-height:1.8;padding-left:1.5rem;margin-bottom:1rem;">
+                  <li>Take photos directly with your camera when submitting (tap Camera, not Library)</li>
+                  <li>Use 1-2 clear photos rather than 3-5 large ones</li>
+                  <li>On iPhone: use the Share sheet to resize before uploading</li>
+                </ul>
+                <p style="font-size:15px;color:#2c1f0e;line-height:1.8;margin-bottom:1.5rem;">Your appraisal credit has <strong>not</strong> been used — please resubmit and we'll get your report underway.</p>
+                <a href="https://www.3scouts.com/#value" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Resubmit your photos →</a>
+              </div>
+              <div style="padding:0.75rem 1.5rem;background:#e8d9b5;font-size:12px;color:#8b6344;">
+                Questions? Email <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
+              </div>
+            </div>
+          `,
+        });
+        return null;
+      }
+      throw err;
     });
+
+    if (!response) return;
 
     const analysisText = response.content[0].text;
 
