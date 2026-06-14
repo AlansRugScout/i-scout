@@ -1588,7 +1588,7 @@ function updateBriefPhotoCount() {
 }
 
 // ── IMAGE COMPRESSION ──
-function compressImage(file, maxWidth = 800, quality = 0.82) {
+function compressImage(file, maxWidth = 600, quality = 0.72) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Read failed'));
