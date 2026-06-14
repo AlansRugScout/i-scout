@@ -1047,6 +1047,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
     .grade-score{min-width:80px;font-size:11px;}
     .rpt-section{padding:1.25rem 0;}
     .rpt-section h2{font-size:0.8rem;letter-spacing:0.03em;}
+    .photo-section{padding:1.25rem 0;}
     .summary-grid{grid-template-columns:1fr 1fr;}
     .comp-table{font-size:12px;}
     .comp-table th,.comp-table td{padding:7px 5px;}
@@ -1111,7 +1112,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   </div>
 </div>
 
-<div style="padding:2rem 0 0;" class="container">
+<div style="padding-top:2rem;" class="container">
 
   ${images.length ? `<div class="photo-section">
     <p class="photo-label">${isEbay ? 'Listing photos' : 'Submitted photos'}</p>
