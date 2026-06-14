@@ -1034,7 +1034,28 @@ function generateReportPage(report, images, isEbay, dateStr) {
   .footer-logo{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-lt);text-decoration:none;}
   .footer-right{font-size:12px;color:rgba(255,255,255,0.35);}
   @media print{nav{display:none;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
-  @media(max-width:600px){nav{padding:0 1.25rem;}.container{padding:0 1.25rem;}.val-box{flex-direction:column;gap:1.5rem;}.report-header{padding:2rem 1.25rem 1.5rem;}.grade-name{min-width:110px;}.grade-score{min-width:100px;font-size:11px;}.rpt-section{padding:1.25rem 0;}.rpt-section h2{font-size:0.8rem;letter-spacing:0.03em;padding-right:0.5rem;}.summary-grid{grid-template-columns:1fr 1fr;}.report-header h1{font-size:1.1rem;}}
+  @media(max-width:600px){
+    nav{padding:0 1.25rem;}
+    .container{padding:0 1.5rem;}
+    .val-box{flex-direction:column;gap:1.5rem;padding:18px 16px;}
+    .val-left{width:100%;}
+    .val-right{width:100%;min-width:0;}
+    .val-range-big{font-size:1.6rem;}
+    .report-header{padding:2rem 1.5rem 1.5rem;}
+    .report-header h1{font-size:1.1rem;}
+    .grade-name{min-width:90px;font-size:12px;}
+    .grade-score{min-width:80px;font-size:11px;}
+    .rpt-section{padding:1.25rem 0;}
+    .rpt-section h2{font-size:0.8rem;letter-spacing:0.03em;}
+    .summary-grid{grid-template-columns:1fr 1fr;}
+    .comp-table{font-size:12px;}
+    .comp-table th,.comp-table td{padding:7px 5px;}
+    .footnote{padding:1.25rem 0 2rem;}
+    .photo-grid img{max-width:100%;height:auto;}
+    .overall-grade-row{gap:10px;}
+    .grade-letter-box{width:52px;height:52px;}
+    .grade-letter{font-size:1.5rem;}
+  }
 </style>
 </head>
 <body>
