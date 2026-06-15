@@ -1348,10 +1348,10 @@ app.get('/account/data', async (req, res) => {
     if (!subResult.rows.length) { client.release(); await pool.end(); return res.status(404).json({ error: 'Account not found. Please use the link from your email.' }); }
     const sub = subResult.rows[0];
     const reportsResult = await client.query(
-      `SELECT listing_title, completed_at, report_token
+      `SELECT listing_title, completed_at, report_token, ebay_item_id
        FROM deep_analyses
        WHERE subscriber_id = $1
-       ORDER BY completed_at DESC LIMIT 10`,
+       ORDER BY completed_at DESC LIMIT 20`,
       [sub.id]
     );
     client.release();
