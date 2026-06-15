@@ -275,10 +275,17 @@ Subscriber is looking for: ${subscriber.description || subscriber.category}
 Respond in exactly this JSON format with no other text:
 {
   "estimate": "£X–£Y" or "€X–€Y" or "$X–$Y" (realistic value range in EUR or GBP),
-  "assessment": "One sentence, max 15 words, plain English — focus on value and condition only, never say not relevant"
+  "assessment": "One sentence, max 15 words, plain English — focus on value and condition only",
+  "recommendation": "BUY" or "WATCH" or "PASS",
+  "undervalue_pct": number between -100 and 200 (positive = listed below value, negative = listed above value, 0 = fair price)
 }
 
-Be honest and specific. Focus only on whether the price looks fair for what it is.`;
+Recommendation guide:
+- BUY: Listed significantly below market value (20%+ undervalued) and genuinely matches the brief
+- WATCH: Fair price or slightly below — worth monitoring but not urgent
+- PASS: Overpriced, poor condition, or doesn't match the brief well
+
+Be honest and specific.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -291,7 +298,7 @@ Be honest and specific. Focus only on whether the price looks fair for what it i
     return JSON.parse(clean);
   } catch (err) {
     console.error('Quick estimate error:', err.message);
-    return { estimate: null, assessment: null };
+    return { estimate: null, assessment: null, recommendation: null, undervalue_pct: 0 };
   }
 }
 
@@ -344,20 +351,39 @@ async function sendDigestEmail(subscriber, listings) {
     listings.map(listing => getQuickEstimate(listing, subscriber))
   );
 
-  const listingBlocks = listings.map((listing, index) => {
+  // Sort by most undervalued first (highest undervalue_pct first)
+  const sortedPairs = listings
+    .map((listing, i) => ({ listing, est: estimates[i] || {} }))
+    .sort((a, b) => (b.est.undervalue_pct || 0) - (a.est.undervalue_pct || 0));
+
+  const listingBlocks = sortedPairs.map(({ listing, est }, index) => {
     const price = listing.price?.value
       ? `${listing.price.currency} ${listing.price.value}`
       : 'Price not listed';
     const imageUrl = listing.image?.imageUrl;
     const listingUrl = listing.itemWebUrl || `https://www.ebay.co.uk/itm/${listing.itemId}`;
     const deepAnalysisUrl = `${process.env.SITE_URL}/deep-analysis?subscriber=${encodeURIComponent(subscriber.email)}&item=${listing.itemId}`;
-    const est = estimates[index] || {};
+
+    // Recommendation badge styling
+    const recColors = {
+      'BUY':   { bg: '#1a4a2e', color: '#c0dd97', label: '◈ BUY' },
+      'WATCH': { bg: '#8b6344', color: '#f5e6c0', label: '◎ WATCH' },
+      'PASS':  { bg: '#5a3e20', color: '#e8d9b5', label: '✕ PASS' },
+    };
+    const rec = recColors[est.recommendation] || null;
+
+    // Undervalue indicator
+    const pct = est.undervalue_pct || 0;
+    const undervalueText = pct > 0 ? `↓ ${pct}% below estimate` : pct < 0 ? `↑ ${Math.abs(pct)}% above estimate` : null;
 
     return `
-      <div style="background:#ffffff;border:1px solid #e8d9b5;border-radius:3px;margin-bottom:1.25rem;overflow:hidden;">
-        <div style="background:#f5edd6;padding:0.5rem 1.25rem;border-bottom:1px solid #e8d9b5;">
+      <div style="background:#ffffff;border:1px solid #e8d9b5;border-radius:3px;margin-bottom:1.25rem;overflow:hidden;${rec?.bg === '#1a4a2e' ? 'border-left:4px solid #c0dd97;' : rec?.bg === '#8b6344' ? 'border-left:4px solid #c9922a;' : ''}">
+        <div style="background:#f5edd6;padding:0.5rem 1.25rem;border-bottom:1px solid #e8d9b5;display:flex;align-items:center;justify-content:space-between;">
           <span style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;color:#c9922a;text-transform:uppercase;">Match ${index + 1} of ${count}</span>
-          ${listing.condition ? `<span style="font-family:Georgia,serif;font-size:11px;color:#8b6344;float:right;">${listing.condition}</span>` : ''}
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${listing.condition ? `<span style="font-family:Georgia,serif;font-size:11px;color:#8b6344;">${listing.condition}</span>` : ''}
+            ${rec ? `<span style="background:${rec.bg};color:${rec.color};font-family:Georgia,serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:2px;">${rec.label}</span>` : ''}
+          </div>
         </div>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
@@ -369,6 +395,7 @@ async function sendDigestEmail(subscriber, listings) {
                   <td style="padding:4px 8px 4px 0;vertical-align:top;width:48%;">
                     <span style="font-family:Georgia,serif;font-size:10px;letter-spacing:1px;color:#8b6344;text-transform:uppercase;display:block;margin-bottom:2px;">Listed price</span>
                     <span style="font-family:Georgia,serif;font-size:1.1rem;font-weight:700;color:#8b2020;">${price}</span>
+                    ${undervalueText ? `<span style="display:block;font-size:11px;color:${pct > 0 ? '#1a4a2e' : '#8b2020'};margin-top:2px;font-weight:600;">${undervalueText}</span>` : ''}
                   </td>
                   ${est.estimate ? `<td style="padding:4px 0 4px 8px;vertical-align:top;border-left:2px solid #e8d9b5;padding-left:10px;">
                     <span style="font-family:Georgia,serif;font-size:10px;letter-spacing:1px;color:#8b6344;text-transform:uppercase;display:block;margin-bottom:2px;">Our estimate</span>
