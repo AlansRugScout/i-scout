@@ -552,8 +552,7 @@ Please be specific, expert and honest. Without physically seeing the item, cavea
       [subscriberId, itemId, listing.title, listing.itemWebUrl, `${listing.price?.value} ${listing.price?.currency}`, imageUrl, analysisText, require('crypto').randomBytes(16).toString('hex')]
     );
     const reportId = result.rows[0].id;
-
-    // Update usage count
+    const reportToken = result.rows[0].report_token;
     await client.query(
       'UPDATE subscribers SET deep_analyses_used = deep_analyses_used + 1 WHERE id = $1',
       [subscriberId]
