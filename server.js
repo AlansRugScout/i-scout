@@ -1342,7 +1342,7 @@ app.get('/account/data', async (req, res) => {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const client = await pool.connect();
     const subResult = await client.query(
-      'SELECT id, name, email, plan, deep_analyses_used, deep_analyses_limit, active FROM subscribers WHERE access_token = $1',
+      'SELECT id, name, email, plan, deep_analyses_used, deep_analyses_limit, active, description, negative, territories FROM subscribers WHERE access_token = $1',
       [t]
     );
     if (!subResult.rows.length) { client.release(); await pool.end(); return res.status(404).json({ error: 'Account not found. Please use the link from your email.' }); }
@@ -1363,6 +1363,9 @@ app.get('/account/data', async (req, res) => {
       deep_analyses_used: sub.deep_analyses_used,
       deep_analyses_limit: sub.deep_analyses_limit,
       active: sub.active,
+      description: sub.description,
+      negative: sub.negative,
+      territories: sub.territories,
       reports: reportsResult.rows,
     });
   } catch(err) {
