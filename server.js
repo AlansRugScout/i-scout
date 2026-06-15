@@ -1364,7 +1364,7 @@ app.get('/account/data', async (req, res) => {
       deep_analyses_limit: sub.deep_analyses_limit,
       active: sub.active,
       description: sub.description,
-      negative: sub.negative,
+      negative: sub.negative || null,
       territories: sub.territories,
       reports: reportsResult.rows,
     });
