@@ -20,25 +20,8 @@
     --white: #fffdf7;
   }
   html { scroll-behavior: smooth; }
-  body {
-    background: var(--parchment);
-    font-family: 'EB Garamond', Georgia, serif;
-    color: var(--ink);
-    font-size: 17px;
-    line-height: 1.7;
-  }
-  nav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: var(--ink);
-    border-bottom: 2px solid var(--gold);
-    padding: 0 2.5rem;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+  body { background: var(--parchment); font-family: 'EB Garamond', Georgia, serif; color: var(--ink); font-size: 17px; line-height: 1.7; }
+  nav { position: sticky; top: 0; z-index: 100; background: var(--ink); border-bottom: 2px solid var(--gold); padding: 0 2.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; }
   .nav-logo { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: var(--gold-lt); text-decoration: none; }
   .nav-back { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255,255,255,0.6); text-decoration: none; }
   .nav-back:hover { color: var(--gold-lt); }
@@ -65,11 +48,7 @@
   .contact-box p { color: rgba(255,255,255,0.75) !important; font-size: 15px !important; }
   .contact-box a { color: var(--gold-lt); }
   footer { background: #1a0e05; border-top: 2px solid var(--gold); padding: 1.5rem 2.5rem; text-align: center; font-size: 12px; color: rgba(255,255,255,0.35); font-family: 'Cinzel', serif; letter-spacing: 0.05em; }
-  @media (max-width: 600px) {
-    nav, .hero { padding: 0 1.25rem; }
-    .hero { padding: 2.5rem 1.25rem; }
-    .container { padding: 2rem 1.25rem; }
-  }
+  @media (max-width: 600px) { nav, .hero { padding: 0 1.25rem; } .hero { padding: 2.5rem 1.25rem; } .container { padding: 2rem 1.25rem; } }
 </style>
 </head>
 <body>
@@ -82,61 +61,72 @@
 <div class="hero">
   <p class="hero-tag">Legal</p>
   <h1>Terms & Conditions</h1>
-  <p>Effective date: 27 May 2026 &nbsp;·&nbsp; Sole trader, domiciled in Ireland</p>
+  <p>Effective date: 16 June 2026 &nbsp;·&nbsp; Sole trader, domiciled in Ireland</p>
 </div>
 
 <div class="container">
-  <p class="updated">Last updated: 27 May 2026</p>
+  <p class="updated">Last updated: 16 June 2026</p>
 
   <div class="highlight-box">
-    <strong>Plain English summary:</strong> 3scouts monitors eBay on your behalf and provides AI-powered appraisal guidance. Our reports are expert guidance, not guarantees. You can cancel anytime. We bill monthly. We're honest about what we are and what we aren't.
+    <strong>Plain English summary:</strong> 3scouts monitors eBay on your behalf and provides AI-powered appraisal guidance. Our reports are expert guidance, not guarantees. Your first single valuation is completely free — no card required. Subscriptions include a 7-day free trial and can be cancelled anytime. All prices are in USD. We're honest about what we are and what we aren't.
   </div>
 
   <div class="doc-section">
     <div class="section-num">Section 01</div>
     <h2>About 3scouts</h2>
-    <p>3scouts is an AI-powered collectables monitoring and appraisal service operated as a sole trader business domiciled in the Republic of Ireland. By subscribing to 3scouts you agree to these Terms & Conditions in full.</p>
+    <p>3scouts is an AI-powered collectables monitoring and appraisal service operated as a sole trader business domiciled in the Republic of Ireland. By using 3scouts you agree to these Terms & Conditions in full.</p>
     <p>3scouts monitors publicly available eBay listings on your behalf, applies AI vision analysis to identify potential matches with your brief, and provides appraisal guidance to assist your purchasing decisions.</p>
   </div>
 
   <div class="doc-section">
     <div class="section-num">Section 02</div>
-    <h2>Subscriptions & billing</h2>
-    <p>3scouts operates on a monthly rolling subscription basis. Subscriptions are billed automatically on the same date each month via Stripe. The following plans are available:</p>
-    <ul>
-      <li><strong>Starter — €20/month:</strong> One Scout category, unlimited standard alerts, 20 Deep Analyses</li>
-      <li><strong>Collector — €45/month:</strong> Up to three Scout categories, unlimited standard alerts, 60 Deep Analyses</li>
-      <li><strong>Dealer — €90/month:</strong> Unlimited categories, unlimited standard alerts, 150 Deep Analyses</li>
-    </ul>
-    <p>All prices are inclusive of applicable taxes. Subscriptions automatically renew each month until cancelled. You will receive a payment receipt after each renewal. A reminder email is sent before your first renewal. You may cancel at any time by contacting <a href="mailto:alan@3scouts.com" style="color: var(--gold);">alan@3scouts.com</a>.</p>
+    <h2>Free valuation</h2>
+    <p>3scouts offers a single free Deep Analysis valuation to any visitor — no card, no subscription, no commitment required. Submit your item via the "Value an Item" form on the homepage and receive a full professional appraisal by email.</p>
+    <p>This free valuation is limited to one per person/email address. Further valuations require a subscription or top-up purchase.</p>
   </div>
 
   <div class="doc-section">
     <div class="section-num">Section 03</div>
-    <h2>Cancellation</h2>
-    <p>You may cancel your 3scouts subscription at any time with no penalty and no questions asked. To cancel:</p>
+    <h2>Subscriptions & billing</h2>
+    <p>3scouts operates on a monthly rolling subscription basis. All prices are in <strong>US Dollars (USD)</strong>. Your card will be charged in USD — your bank or card issuer will convert to your local currency at their prevailing exchange rate. Subscriptions are billed automatically on the same date each month via Stripe.</p>
+    <p>The following plans are currently available:</p>
     <ul>
-      <li>Email <a href="mailto:alan@3scouts.com" style="color: var(--gold);">alan@3scouts.com</a> with your cancellation request</li>
-      <li>Your Scout will be deactivated at the end of your current billing period</li>
-      <li>No further charges will be made after cancellation</li>
-      <li>Partial months are not refunded unless there has been a service failure on our part</li>
+      <li><strong>Starter — $9.99/month:</strong> One Scout brief, unlimited standard alerts, 10 Deep Analyses per month. Includes a 7-day free trial.</li>
+      <li><strong>Collector — $19.99/month:</strong> Up to three Scout briefs, unlimited standard alerts, 30 Deep Analyses per month.</li>
+      <li><strong>Dealer — $49.99/month:</strong> Unlimited Scout briefs, unlimited standard alerts, 100 Deep Analyses per month.</li>
     </ul>
-    <p>We will confirm your cancellation by email within 24 hours of receiving your request.</p>
+    <p>The Starter plan includes a <strong>7-day free trial</strong>. A valid payment card is required to start the trial. No charge is made during the trial period. If you cancel before the trial ends, you will not be charged.</p>
+    <p>Subscriptions automatically renew each month until cancelled. You will receive a payment receipt after each renewal. You may cancel at any time via your Stripe billing portal or by contacting <a href="mailto:alan@3scouts.com" style="color: var(--gold);">alan@3scouts.com</a>.</p>
   </div>
 
   <div class="doc-section">
     <div class="section-num">Section 04</div>
-    <h2>Standard alerts & Deep Analysis</h2>
-    <p>Your subscription includes two levels of service:</p>
+    <h2>Cancellation</h2>
+    <p>You may cancel your 3scouts subscription at any time with no penalty and no questions asked. To cancel:</p>
     <ul>
-      <li><strong>Standard Alert:</strong> An automated email notification when a potential match is identified, including the listing image, asking price, and a brief AI assessment. Included free with all plans on an unlimited basis.</li>
-      <li><strong>Deep Analysis:</strong> A full professional appraisal report including authenticity assessment, condition grading, comparable sales data, and a detailed buying recommendation. Deep Analyses are drawn from your monthly allowance. Additional Deep Analyses may be purchased at €2 per 10.</li>
+      <li>Visit your Stripe billing portal (link in your welcome email) — one click, instant</li>
+      <li>Visit your account at <a href="https://www.3scouts.com/my-account" style="color: var(--gold);">3scouts.com/my-account</a> and click "Manage subscription" — one click, instant</li>
+      <li>Or email <a href="mailto:alan@3scouts.com" style="color: var(--gold);">alan@3scouts.com</a> and we will cancel within 24 hours</li>
+      <li>Your Scout will be deactivated at the end of your current billing period</li>
+      <li>No further charges will be made after cancellation</li>
+      <li>Partial months are not refunded unless there has been a service failure on our part</li>
     </ul>
-    <p>You will be notified when your Deep Analysis allowance is running low. Your Scout will never exceed your monthly budget without your explicit approval.</p>
   </div>
 
   <div class="doc-section">
     <div class="section-num">Section 05</div>
+    <h2>Standard alerts & Deep Analysis</h2>
+    <p>Your subscription includes two levels of service:</p>
+    <ul>
+      <li><strong>Standard Alert:</strong> An automated email notification when a potential match is identified, including the listing image, asking price, and a brief AI assessment. Included free with all plans on an unlimited basis.</li>
+      <li><strong>Deep Analysis:</strong> A full professional appraisal report including authenticity assessment, condition grading, comparable sales data, and a detailed buying recommendation. Deep Analyses are drawn from your monthly allowance.</li>
+    </ul>
+    <p>Additional Deep Analyses beyond your monthly allowance may be purchased as a top-up at <strong>$2.99 per 10 reports</strong>, via your account at 3scouts.com. Top-ups are a one-time purchase and do not auto-renew.</p>
+    <p>You will be notified when your Deep Analysis allowance is running low.</p>
+  </div>
+
+  <div class="doc-section">
+    <div class="section-num">Section 06</div>
     <h2>Nature of our appraisals — important</h2>
     <div class="caveat-box">
       "Without physically seeing and examining an item, no definitive appraisal or purchase recommendation can be made. All 3scouts valuations, authenticity assessments, and condition reports are AI-assisted guidance based on available listing photographs and market data only. They are provided to assist your research and decision-making — not as a substitute for expert physical examination."
@@ -146,14 +136,14 @@
   </div>
 
   <div class="doc-section">
-    <div class="section-num">Section 06</div>
+    <div class="section-num">Section 07</div>
     <h2>eBay Buyer Protection</h2>
     <p>In most circumstances, purchases made through eBay are covered by eBay's Money Back Guarantee. If an item you receive is not as described or materially differs from the listing, eBay's Buyer Protection policy generally entitles you to a full refund. We encourage all subscribers to familiarise themselves with eBay's buyer protection terms before making any purchase.</p>
     <p>3scouts is not affiliated with eBay and cannot guarantee the outcome of any eBay Buyer Protection claim.</p>
   </div>
 
   <div class="doc-section">
-    <div class="section-num">Section 07</div>
+    <div class="section-num">Section 08</div>
     <h2>Service availability</h2>
     <p>3scouts uses commercially reasonable efforts to provide a continuous and reliable monitoring service. However, we cannot guarantee uninterrupted service and accept no liability for:</p>
     <ul>
@@ -166,19 +156,27 @@
   </div>
 
   <div class="doc-section">
-    <div class="section-num">Section 08</div>
+    <div class="section-num">Section 09</div>
+    <h2>Currency & pricing</h2>
+    <p>All 3scouts subscription prices and top-up charges are denominated in <strong>US Dollars (USD)</strong>. This reflects the global nature of the service and aligns with our primary cost base.</p>
+    <p>If you are based outside the United States, your bank or card provider will convert the USD charge to your local currency at their prevailing rate at the time of billing. 3scouts has no control over exchange rates or any foreign transaction fees your bank may apply.</p>
+    <p>Stripe, our payment processor, may display an estimated local currency equivalent at checkout. This is for guidance only — the charge made to your card will be in USD.</p>
+  </div>
+
+  <div class="doc-section">
+    <div class="section-num">Section 10</div>
     <h2>Acceptable use</h2>
     <p>Subscribers may not use 3scouts for any unlawful purpose, to monitor listings for the purpose of fraud or deception, or to resell or redistribute 3scouts appraisal reports without permission. 3scouts reserves the right to terminate any subscription where misuse is suspected, without refund.</p>
   </div>
 
   <div class="doc-section">
-    <div class="section-num">Section 09</div>
+    <div class="section-num">Section 11</div>
     <h2>Governing law</h2>
     <p>These Terms & Conditions are governed by the laws of the Republic of Ireland. Any disputes arising from the use of 3scouts shall be subject to the exclusive jurisdiction of the Irish courts.</p>
   </div>
 
   <div class="doc-section">
-    <div class="section-num">Section 10</div>
+    <div class="section-num">Section 12</div>
     <h2>Contact</h2>
     <div class="contact-box">
       <p>For any questions about these terms, billing, cancellations, or anything else, contact us directly. We aim to respond within 2 working days.</p>
