@@ -261,7 +261,8 @@ function isRelevantListing(listing, subscriber) {
 
 async function getQuickEstimate(listing, subscriber) {
   try {
-    const price = listing.price?.value
+    const listedPrice = listing.price?.value ? parseFloat(listing.price.value) : null;
+    const price = listedPrice
       ? `${listing.price.currency} ${listing.price.value}`
       : 'Price not listed';
 
@@ -274,10 +275,9 @@ Subscriber is looking for: ${subscriber.description || subscriber.category}
 
 Respond in exactly this JSON format with no other text:
 {
-  "estimate": "£X–£Y" or "€X–€Y" or "$X–$Y" (realistic value range in EUR or GBP),
+  "estimate": "£X–£Y" or "€X–€Y" or "$X–$Y" (realistic value range, use same currency as listed price),
   "assessment": "One sentence, max 15 words, plain English — focus on value and condition only",
-  "recommendation": "BUY" or "WATCH" or "PASS",
-  "undervalue_pct": number between -100 and 200 (positive = listed below value, negative = listed above value, 0 = fair price)
+  "recommendation": "BUY" or "WATCH" or "PASS"
 }
 
 Recommendation guide:
@@ -285,17 +285,37 @@ Recommendation guide:
 - WATCH: Fair price or slightly below — worth monitoring but not urgent
 - PASS: Overpriced, poor condition, or doesn't match the brief well
 
-Be honest and specific.`;
+Be honest and specific. If the listed price is above your estimate, recommend PASS.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
+      max_tokens: 120,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const text = response.content[0].text.trim();
     const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    const parsed = JSON.parse(clean);
+
+    // Calculate undervalue_pct ourselves from the estimate range and listed price
+    // This is more reliable than asking Claude to do arithmetic
+    let undervalue_pct = 0;
+    if (listedPrice && parsed.estimate) {
+      // Extract numbers from estimate string e.g. "£500–£700" or "$300-$500"
+      const nums = parsed.estimate.match(/[\d,]+/g);
+      if (nums && nums.length >= 2) {
+        const low = parseFloat(nums[0].replace(/,/g, ''));
+        const high = parseFloat(nums[1].replace(/,/g, ''));
+        const midpoint = (low + high) / 2;
+        if (midpoint > 0) {
+          // Positive = listed BELOW our estimate (good deal)
+          // Negative = listed ABOVE our estimate (overpriced)
+          undervalue_pct = Math.round(((midpoint - listedPrice) / midpoint) * 100);
+        }
+      }
+    }
+
+    return { ...parsed, undervalue_pct };
   } catch (err) {
     console.error('Quick estimate error:', err.message);
     return { estimate: null, assessment: null, recommendation: null, undervalue_pct: 0 };
