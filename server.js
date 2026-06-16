@@ -705,6 +705,10 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /range\s+of[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
     /between[^€£$\d\n]{0,20}([€£$][\d,]+)\s*(?:and|to)\s*([€£$][\d,]+)/i,
     /([€£$][\d,]+\s*(?:–|to)\s*[€£$][\d,]+)[^\n]{0,60}(?:fair|value|estimate|valuation)/i,
+    /(?:achieve|fetch|realise|realize|command|worth|priced?)[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)[^\n]{0,40}(?:achieve|fetch|realise|realize|market|auction|condition)/i,
+    /(?:valuation|valued?)[^€£$\d\n]{0,50}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /([€£$][\d,]+)\s*(?:–|-|to)\s*([€£$][\d,]+)\s*(?:at\s+)?(?:auction|market|retail|private\s+sale)/i,
   ];
   for (const pat of valPatterns) {
     const m = analysisText.match(pat);
