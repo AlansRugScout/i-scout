@@ -259,11 +259,17 @@ function isRelevantListing(listing, subscriber) {
 
 // ── QUICK ESTIMATE ───────────────────────────────────────────────
 
+function currencySymbol(code) {
+  const map = { GBP: '£', EUR: '€', USD: '$', AUD: 'A$', CAD: 'C$' };
+  return map[code] || code;
+}
+
 async function getQuickEstimate(listing, subscriber) {
   try {
     const listedPrice = listing.price?.value ? parseFloat(listing.price.value) : null;
+    const currSym = listing.price?.currency ? currencySymbol(listing.price.currency) : '';
     const price = listedPrice
-      ? `${listing.price.currency} ${listing.price.value}`
+      ? `${currSym}${parseFloat(listing.price.value).toFixed(2)}`
       : 'Price not listed';
 
     const prompt = `You are a collectables expert for 3scouts. Assess this eBay listing briefly.
@@ -377,8 +383,9 @@ async function sendDigestEmail(subscriber, listings) {
     .sort((a, b) => (b.est.undervalue_pct || 0) - (a.est.undervalue_pct || 0));
 
   const listingBlocks = sortedPairs.map(({ listing, est }, index) => {
+    const currSym = listing.price?.currency ? currencySymbol(listing.price.currency) : '';
     const price = listing.price?.value
-      ? `${listing.price.currency} ${listing.price.value}`
+      ? `${currSym}${parseFloat(listing.price.value).toFixed(2)}`
       : 'Price not listed';
     const imageUrl = listing.image?.imageUrl;
     const listingUrl = listing.itemWebUrl || `https://www.ebay.co.uk/itm/${listing.itemId}`;
