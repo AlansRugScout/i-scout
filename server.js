@@ -297,9 +297,9 @@ app.post('/create-checkout-session', async (req, res) => {
   if (!priceId) return res.status(400).json({ error: 'Invalid plan selected' });
 
   const planLabels = {
-    trial:     '3scouts Starter — €20/month',
-    collector: '3scouts Collector — €45/month',
-    dealer:    '3scouts Dealer — €90/month',
+    trial:     '3scouts Starter — $9.99/month',
+    collector: '3scouts Collector — $19.99/month',
+    dealer:    '3scouts Dealer — $49.99/month',
   };
 
   try {
@@ -534,7 +534,7 @@ app.post('/create-valuation-session', async (req, res) => {
       allow_promotion_codes: true,
       automatic_tax: { enabled: false },
       metadata: {
-        plan:        '3scouts Starter — €20/month',
+        plan:        '3scouts Starter — $9.99/month',
         name:        name || '',
         category:    'Item Valuation Request',
         description: (description || '').substring(0, 500),
@@ -548,7 +548,7 @@ app.post('/create-valuation-session', async (req, res) => {
     try {
       await sendOwnerAlert({
         name, email,
-        plan: '3scouts Starter — €20/month',
+        plan: '3scouts Starter — $9.99/month',
         category: 'Item Valuation Request',
         description, budget: '', negative: '', territories: '', frequency: '',
         images: images || [],
@@ -651,6 +651,12 @@ function formatPrice(raw) {
 
 function generateReportPage(report, images, isEbay, dateStr) {
   const analysisText = (report.analysis_text || '').replace(/^End of Report[^\n]*/im, '').trim();
+
+  // Photo count note for footnote
+  const photoCount = images ? images.length : 0;
+  const photoCountNote = photoCount > 0
+    ? ` &nbsp;·&nbsp; This report is based on ${photoCount} photograph${photoCount > 1 ? 's' : ''} provided. If additional photos exist showing marks, hallmarks or damage not visible in the submitted images, these may affect this assessment.`
+    : '';
 
   // ── Parse structured fields ──────────────────────────────────────
   let confidence = null;
@@ -1122,7 +1128,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   ${sectionsHtml}
 
   <p class="footnote">
-    Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing decisions made on the basis of this report. &nbsp;·&nbsp; Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:var(--gold);">3scouts.com</a>
+    Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing decisions made on the basis of this report.${photoCountNote} &nbsp;·&nbsp; Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:var(--gold);">3scouts.com</a>
   </p>
 
 </div>
