@@ -709,12 +709,29 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)[^\n]{0,40}(?:achieve|fetch|realise|realize|market|auction|condition)/i,
     /(?:valuation|valued?)[^€£$\d\n]{0,50}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /([€£$][\d,]+)\s*(?:–|-|to)\s*([€£$][\d,]+)\s*(?:at\s+)?(?:auction|market|retail|private\s+sale)/i,
+    /(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)/i,
+    /(?:conservative|retail|estimate|value|worth)[^€£$\d\n]{0,30}(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)/i,
   ];
   for (const pat of valPatterns) {
     const m = analysisText.match(pat);
     if (m) {
-      // If two capture groups (from "between X and Y"), format with dash
-      valuation = m[2] ? m[1].trim() + ' – ' + m[2].trim() : m[1].trim();
+      // If two capture groups (from "between X and Y" or word-based currency), format with dash
+      if (m[2]) {
+        // Check if values already have currency symbols
+        const v1 = m[1].trim();
+        const v2 = m[2].trim();
+        const hasSym = /^[€£$]/.test(v1);
+        // Detect word currency in surrounding text
+        const wordEuro = /euro|eur/i.test(m[0]);
+        const wordGbp = /gbp|pound/i.test(m[0]);
+        const wordUsd = /usd|dollar/i.test(m[0]);
+        const wordAud = /aud|australian/i.test(m[0]);
+        const wordCad = /cad|canadian/i.test(m[0]);
+        const sym = hasSym ? '' : wordGbp ? '£' : wordAud ? 'A$' : wordCad ? 'C$' : wordUsd ? '$' : wordEuro ? '€' : '';
+        valuation = `${sym}${v1} – ${sym}${v2}`;
+      } else {
+        valuation = m[1].trim();
+      }
       break;
     }
   }
