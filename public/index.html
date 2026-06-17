@@ -1752,9 +1752,7 @@ async function handleSubmit(e) {
   const imageDataUrls = accumulatedBriefPhotos.slice(0, 3);
   console.log(`Submitting brief with ${imageDataUrls.length} photo(s)`);
 
-  const territoriesChecked = Array.from(
-    document.querySelectorAll('input[name="territories"]:checked')
-  ).map(cb => cb.value);
+  const territoriesValues = territoriesChecked.map(cb => cb.value);
 
   const payload = {
     plan:        planMap[planRaw] || 'trial',
@@ -1764,7 +1762,7 @@ async function handleSubmit(e) {
     description: document.getElementById('description').value,
     budget:      document.getElementById('budget').value,
     negative:    document.getElementById('negative').value,
-    territories: territoriesChecked.length > 0 ? territoriesChecked.join(',') : 'EBAY_GB,EBAY_IE,EBAY_US',
+    territories: territoriesValues.length > 0 ? territoriesValues.join(',') : 'EBAY_GB,EBAY_IE,EBAY_US',
     frequency:   document.getElementById('frequency').value,
     images:      imageDataUrls,
   };
