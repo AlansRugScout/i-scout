@@ -661,9 +661,10 @@ function generateReportPage(report, images, isEbay, dateStr) {
   // ── Parse structured fields ──────────────────────────────────────
   let confidence = null;
   const confMatch = analysisText.match(/Authenticity\s+Confidence[:\s]+(\d+)\s*(?:%|percent)/i)
-    || analysisText.match(/Confidence[:\s]+(\d+)\s*%/i)
-    || analysisText.match(/authenticity[^.]{0,60}(\d+)\s*%/i)
-    || analysisText.match(/(\d+)\s*%\s*(?:confidence|authentic|genuine|likely)/i)
+    || analysisText.match(/[Cc]onfidence\s+in\s+authenticity[:\s]+(\d+)\s*%/i)
+    || analysisText.match(/[Cc]onfidence[:\s]+(\d+)\s*%/i)
+    || analysisText.match(/authenticity[^.]{0,60}?(\d+)\s*%/i)
+    || analysisText.match(/(\d+)\s*%\s+confidence/i)
     || analysisText.match(/confidence\s+(?:of\s+)?(\d+)\s*%/i)
     || analysisText.match(/(\d+)\s*%\s+(?:that\s+)?(?:this\s+)?(?:is\s+)?(?:genuine|authentic)/i);
   if (confMatch) confidence = parseInt(confMatch[1]);
