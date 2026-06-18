@@ -661,7 +661,11 @@ function generateReportPage(report, images, isEbay, dateStr) {
   // ── Parse structured fields ──────────────────────────────────────
   let confidence = null;
   const confMatch = analysisText.match(/Authenticity\s+Confidence[:\s]+(\d+)\s*(?:%|percent)/i)
-    || analysisText.match(/Confidence[:\s]+(\d+)\s*%/i);
+    || analysisText.match(/Confidence[:\s]+(\d+)\s*%/i)
+    || analysisText.match(/authenticity[^.]{0,60}(\d+)\s*%/i)
+    || analysisText.match(/(\d+)\s*%\s*(?:confidence|authentic|genuine|likely)/i)
+    || analysisText.match(/confidence\s+(?:of\s+)?(\d+)\s*%/i)
+    || analysisText.match(/(\d+)\s*%\s+(?:that\s+)?(?:this\s+)?(?:is\s+)?(?:genuine|authentic)/i);
   if (confMatch) confidence = parseInt(confMatch[1]);
 
   let grade = null;
@@ -707,7 +711,9 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /([€£$][\d,]+\s*(?:–|to)\s*[€£$][\d,]+)[^\n]{0,60}(?:fair|value|estimate|valuation)/i,
     /(?:achieve|fetch|realise|realize|command|worth|priced?)[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)[^\n]{0,40}(?:achieve|fetch|realise|realize|market|auction|condition)/i,
-    /(?:valuation|valued?)[^€£$\d\n]{0,50}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /(?:valuation|valued?)[^€£$\d]{0,50}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /valuation\s+(?:for[^€£$\d]{0,50})?is[:\s]+([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /market\s+valuation[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
     /([€£$][\d,]+)\s*(?:–|-|to)\s*([€£$][\d,]+)\s*(?:at\s+)?(?:auction|market|retail|private\s+sale)/i,
     /(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)/i,
     /(?:conservative|retail|estimate|value|worth)[^€£$\d\n]{0,30}(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)/i,
