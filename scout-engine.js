@@ -162,10 +162,11 @@ async function searchEbay(subscriber, token) {
       }
 
       const items = data.itemSummaries || [];
-      // Deduplicate across marketplaces
+      // Deduplicate across marketplaces — tag each with source market
       for (const item of items) {
         if (!seenIds.has(item.itemId)) {
           seenIds.add(item.itemId);
+          item._market = market; // tag with source marketplace
           allListings.push(item);
         }
       }
@@ -264,10 +265,29 @@ function currencySymbol(code) {
   return map[code] || code;
 }
 
+function marketplaceCurrency(market) {
+  const map = {
+    EBAY_GB: '£', EBAY_IE: '€', EBAY_US: '$',
+    EBAY_AU: 'A$', EBAY_CA: 'C$', EBAY_DE: '€',
+    EBAY_FR: '€', EBAY_IT: '€', EBAY_ES: '€'
+  };
+  return map[market] || null;
+}
+
+function marketplaceFlag(market) {
+  const map = {
+    EBAY_GB: '🇬🇧', EBAY_IE: '🇮🇪', EBAY_US: '🇺🇸',
+    EBAY_AU: '🇦🇺', EBAY_CA: '🇨🇦', EBAY_DE: '🇩🇪',
+    EBAY_FR: '🇫🇷', EBAY_IT: '🇮🇹', EBAY_ES: '🇪🇸'
+  };
+  return map[market] || '';
+}
+
 async function getQuickEstimate(listing, subscriber) {
   try {
     const listedPrice = listing.price?.value ? parseFloat(listing.price.value) : null;
-    const currSym = listing.price?.currency ? currencySymbol(listing.price.currency) : '';
+    const mktSym = listing._market ? marketplaceCurrency(listing._market) : null;
+    const currSym = mktSym || (listing.price?.currency ? currencySymbol(listing.price.currency) : '');
     const price = listedPrice
       ? `${currSym}${parseFloat(listing.price.value).toFixed(2)}`
       : 'Price not listed';
@@ -384,8 +404,12 @@ async function sendDigestEmail(subscriber, listings) {
 
   const listingBlocks = sortedPairs.map(({ listing, est }, index) => {
     const currSym = listing.price?.currency ? currencySymbol(listing.price.currency) : '';
+    // Override with marketplace currency if eBay returned wrong currency
+    const mktSym = listing._market ? marketplaceCurrency(listing._market) : null;
+    const flag = listing._market ? marketplaceFlag(listing._market) : '';
+    const displaySym = mktSym || currSym;
     const price = listing.price?.value
-      ? `${currSym}${parseFloat(listing.price.value).toFixed(2)}`
+      ? `${displaySym}${parseFloat(listing.price.value).toFixed(2)}`
       : 'Price not listed';
     const imageUrl = listing.image?.imageUrl;
     const listingUrl = listing.itemWebUrl || `https://www.ebay.co.uk/itm/${listing.itemId}`;
@@ -406,7 +430,7 @@ async function sendDigestEmail(subscriber, listings) {
     return `
       <div style="background:#ffffff;border:1px solid #e8d9b5;border-radius:3px;margin-bottom:1.25rem;overflow:hidden;${rec?.bg === '#1a4a2e' ? 'border-left:4px solid #c0dd97;' : rec?.bg === '#8b6344' ? 'border-left:4px solid #c9922a;' : ''}">
         <div style="background:#f5edd6;padding:0.5rem 1.25rem;border-bottom:1px solid #e8d9b5;display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;color:#c9922a;text-transform:uppercase;">Match ${index + 1} of ${count}</span>
+          <span style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;color:#c9922a;text-transform:uppercase;">Match ${index + 1} of ${count} ${flag}</span>
           <div style="display:flex;align-items:center;gap:8px;">
             ${listing.condition ? `<span style="font-family:Georgia,serif;font-size:11px;color:#8b6344;">${listing.condition}</span>` : ''}
             ${rec ? `<span style="background:${rec.bg};color:${rec.color};font-family:Georgia,serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:2px;">${rec.label}</span>` : ''}
