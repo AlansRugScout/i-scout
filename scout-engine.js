@@ -283,11 +283,50 @@ function marketplaceFlag(market) {
   return map[market] || '';
 }
 
+// Map actual item location (from eBay itemLocation.country) to flag — this is
+// the SELLER's real location, more reliable than which marketplace we searched
+const COUNTRY_FLAG = {
+  'GB': '🇬🇧', 'United Kingdom': '🇬🇧', 'UK': '🇬🇧',
+  'IE': '🇮🇪', 'Ireland': '🇮🇪',
+  'US': '🇺🇸', 'United States': '🇺🇸', 'USA': '🇺🇸',
+  'AU': '🇦🇺', 'Australia': '🇦🇺',
+  'CA': '🇨🇦', 'Canada': '🇨🇦',
+  'DE': '🇩🇪', 'Germany': '🇩🇪',
+  'FR': '🇫🇷', 'France': '🇫🇷',
+  'IT': '🇮🇹', 'Italy': '🇮🇹',
+  'ES': '🇪🇸', 'Spain': '🇪🇸',
+  'JP': '🇯🇵', 'Japan': '🇯🇵',
+  'CN': '🇨🇳', 'China': '🇨🇳',
+  'HK': '🇭🇰', 'Hong Kong': '🇭🇰',
+  'NL': '🇳🇱', 'Netherlands': '🇳🇱',
+  'CH': '🇨🇭', 'Switzerland': '🇨🇭',
+  'BE': '🇧🇪', 'Belgium': '🇧🇪',
+  'AT': '🇦🇹', 'Austria': '🇦🇹',
+  'PT': '🇵🇹', 'Portugal': '🇵🇹',
+  'PL': '🇵🇱', 'Poland': '🇵🇱',
+  'SG': '🇸🇬', 'Singapore': '🇸🇬',
+  'KR': '🇰🇷', 'South Korea': '🇰🇷',
+  'NZ': '🇳🇿', 'New Zealand': '🇳🇿',
+};
+
+function getListingFlag(listing) {
+  const country = listing.itemLocation?.country;
+  if (country && COUNTRY_FLAG[country]) return COUNTRY_FLAG[country];
+  // Fallback to marketplace searched if no item location data
+  return listing._market ? marketplaceFlag(listing._market) : '';
+}
+
+// eBay's returned price.currency is generally reliable for the actual listing
+// currency — use it directly rather than guessing from marketplace searched
+function getListingCurrency(listing) {
+  if (listing.price?.currency) return currencySymbol(listing.price.currency);
+  return listing._market ? marketplaceCurrency(listing._market) : '';
+}
+
 async function getQuickEstimate(listing, subscriber) {
   try {
     const listedPrice = listing.price?.value ? parseFloat(listing.price.value) : null;
-    const mktSym = listing._market ? marketplaceCurrency(listing._market) : null;
-    const currSym = mktSym || (listing.price?.currency ? currencySymbol(listing.price.currency) : '');
+    const currSym = getListingCurrency(listing);
     const price = listedPrice
       ? `${currSym}${parseFloat(listing.price.value).toFixed(2)}`
       : 'Price not listed';
@@ -403,11 +442,8 @@ async function sendDigestEmail(subscriber, listings) {
     .sort((a, b) => (b.est.undervalue_pct || 0) - (a.est.undervalue_pct || 0));
 
   const listingBlocks = sortedPairs.map(({ listing, est }, index) => {
-    const currSym = listing.price?.currency ? currencySymbol(listing.price.currency) : '';
-    // Override with marketplace currency if eBay returned wrong currency
-    const mktSym = listing._market ? marketplaceCurrency(listing._market) : null;
-    const flag = listing._market ? marketplaceFlag(listing._market) : '';
-    const displaySym = mktSym || currSym;
+    const displaySym = getListingCurrency(listing);
+    const flag = getListingFlag(listing);
     const price = listing.price?.value
       ? `${displaySym}${parseFloat(listing.price.value).toFixed(2)}`
       : 'Price not listed';
