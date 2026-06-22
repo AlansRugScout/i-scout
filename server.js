@@ -705,7 +705,10 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /(?:current|retail|auction|replacement)\s+(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     /value[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /sell\s+for[^€£$\d\n]{0,20}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
-    /estimate[^€£$\d\n]{0,40}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    // Mid-market / multi-tier estimate formats
+    /mid[- ]market\s+estimate[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /mid[- ]range\s+estimate[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /estimate[^€£$\d]{0,60}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /fair\s+value\s+range[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
     /range\s+of[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
     /between[^€£$\d\n]{0,20}([€£$][\d,]+)\s*(?:and|to)\s*([€£$][\d,]+)/i,
@@ -716,6 +719,8 @@ function generateReportPage(report, images, isEbay, dateStr) {
     /valuation\s+(?:for[^€£$\d]{0,50})?is[:\s]+([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
     /market\s+valuation[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
     /([€£$][\d,]+)\s*(?:–|-|to)\s*([€£$][\d,]+)\s*(?:at\s+)?(?:auction|market|retail|private\s+sale)/i,
+    // Fallback: first currency range found anywhere in text
+    /([€£$][\d,]+(?:\.\d+)?)\s*(?:to|–|-)\s*([€£$][\d,]+(?:\.\d+)?)/i,
     /(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)/i,
     /(?:conservative|retail|estimate|value|worth)[^€£$\d\n]{0,30}(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)/i,
   ];
