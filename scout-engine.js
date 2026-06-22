@@ -491,6 +491,7 @@ async function sendDigestEmail(subscriber, listings) {
                 </tr>
               </table>
               ${est.assessment ? `<div style="background:#f5edd6;border-left:3px solid #c9922a;padding:6px 10px;margin-bottom:0.75rem;font-family:Georgia,serif;font-size:13px;color:#5a3e20;line-height:1.6;font-style:italic;">"${est.assessment}"</div>` : ''}
+              <p style="font-size:11px;color:#8b6344;font-style:italic;line-height:1.5;margin-bottom:0.75rem;">This estimate is based on a quick snapshot assessment of the listing. A Deep Analysis may significantly alter this valuation in either direction.</p>
               <table style="border-collapse:collapse;">
                 <tr>
                   <td style="padding-right:8px;"><a href="${listingUrl}" style="display:inline-block;background:#2c1f0e;color:#e8b84b;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:3px;text-decoration:none;white-space:nowrap;">View on eBay →</a></td>
