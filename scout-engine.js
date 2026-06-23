@@ -900,8 +900,8 @@ async function sendValuationFollowUp(email, name) {
         </div>
         <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
           <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">We hope your 3scouts valuation report was useful. If you'd like us to keep working for you — watching eBay around the clock for whatever you collect, alerting you the moment a genuine find appears with a full professional appraisal — we'd love to have you as a subscriber.</p>
-          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 0.5rem;">Your first <strong>30 days are completely free</strong>. Then just €20 a month. No contracts, no commitments — cancel anytime in one click before your trial ends and you won't be charged a penny.</p>
-          <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my subscription →</a>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.5rem;">Your first <strong>7 days are completely free</strong>. Then just $9.99 a month. No contracts, no commitments — cancel anytime in one click before your trial ends and you won't be charged a penny.</p>
+          <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my free trial →</a>
         </div>
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
