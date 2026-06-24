@@ -484,7 +484,7 @@ app.post('/request-valuation', async (req, res) => {
       const accessToken = require('crypto').randomBytes(16).toString('hex');
       await client2.query(
         `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit, deep_analyses_used, access_token)
-         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 1, 0, $4)
+         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', $3, 'all', 'twice', false, 3, 0, $4)
          ON CONFLICT (email) DO NOTHING`,
         [name || 'Visitor', email, description, accessToken]
       );
@@ -500,7 +500,7 @@ app.post('/request-valuation', async (req, res) => {
             error: 'already_used',
             name: name || 'there',
             email: email,
-            message: 'You have already used your free valuation.'
+            message: 'You have used all 3 of your free appraisals. Visit 3scouts.com to subscribe or top up.'
           });
         }
         runDeepAnalysisFromDescription(sub.id, description, images || [])
