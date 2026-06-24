@@ -891,6 +891,7 @@ async function sendValuationFollowUp(email, name) {
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
     subject: 'Did you enjoy your 3scouts appraisal?',
     html: `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
@@ -1062,14 +1063,15 @@ Be specific, expert and honest. Note that without physically examining the item,
     const reportId = result.rows[0].id;
     const reportToken = result.rows[0].report_token;
 
-    // Update usage count
+    // Send notification email with report link BEFORE incrementing usage
+    // so if email fails, the customer can try again
+    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
+
+    // Only increment usage after successful email delivery
     await client.query(
       'UPDATE subscribers SET deep_analyses_used = deep_analyses_used + 1 WHERE id = $1',
       [subscriberId]
     );
-
-    // Send notification email with report link
-    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
 
     // Queue follow-up email in database — survives server restarts
     if (!subscriber.active || subscriber.plan === 'Free Valuation') {
