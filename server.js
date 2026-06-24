@@ -500,7 +500,7 @@ app.post('/request-valuation', async (req, res) => {
             error: 'already_used',
             name: name || 'there',
             email: email,
-            message: 'You have used all 3 of your free appraisals. Visit 3scouts.com to subscribe or top up.'
+            message: 'You have used all 3 of your free appraisals. Start your 7-day free trial to get 10 reports/month plus eBay monitoring.'
           });
         }
         runDeepAnalysisFromDescription(sub.id, description, images || [])
