@@ -1073,6 +1073,45 @@ Be specific, expert and honest. Note that without physically examining the item,
       [subscriberId]
     );
 
+    // Get updated usage count
+    const usageResult = await client.query(
+      'SELECT deep_analyses_used, deep_analyses_limit, plan FROM subscribers WHERE id = $1',
+      [subscriberId]
+    );
+    const updated = usageResult.rows[0];
+    const remaining = updated.deep_analyses_limit - updated.deep_analyses_used;
+
+    // Send "1 report remaining" warning to free users
+    if (updated.plan === 'Free Valuation' && remaining === 1) {
+      try {
+        await resend.emails.send({
+          from: '3scouts <scout@3scouts.com>',
+          to: subscriber.email,
+          bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+          subject: 'You have 1 free appraisal remaining — 3scouts',
+          html: `
+            <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
+              <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
+                <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · A note from us</p>
+                <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Just so you know, ${subscriber.name.split(' ')[0]}</h2>
+              </div>
+              <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
+                <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">You have <strong>1 free appraisal remaining</strong> on your 3scouts account.</p>
+                <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">When you're ready for more, start your 7-day free trial — <strong>10 Deep Analyses per month</strong> plus Scout One watching eBay around the clock for whatever you collect. No charge until day 8, cancel anytime.</p>
+                <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my free trial →</a>
+              </div>
+              <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
+                <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · No contracts · Cancel anytime</p>
+              </div>
+            </div>
+          `,
+        });
+        console.log(`"1 remaining" warning sent to ${subscriber.email}`);
+      } catch(e) {
+        console.error('Warning email error:', e.message);
+      }
+    }
+
     // Queue follow-up email in database — survives server restarts
     if (!subscriber.active || subscriber.plan === 'Free Valuation') {
       try {
