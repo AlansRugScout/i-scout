@@ -1161,7 +1161,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   ${sectionsHtml}
 
   <p class="footnote">
-    Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing decisions made on the basis of this report.${photoCountNote} &nbsp;·&nbsp; Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:var(--gold);">3scouts.com</a>
+    Without physically seeing and examining an item, no definitive appraisal can be made. This report is based on the photographs and description provided only. Valuations are estimates based on comparable sales data from our knowledge base and should not be taken as a guarantee of resale value. Authentication assessments do not replace physical examination by a qualified specialist. 3scouts accepts no liability for purchasing or selling decisions made on the basis of this report. For coins, stamps and trading cards: mintage figures, production data and card values are highly category-specific and volatile — always verify with specialist references and recent completed sales before buying or selling. For items from Japanese or Asian markets: regional pricing may differ significantly from Western market values.${photoCountNote} &nbsp;·&nbsp; Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:var(--gold);">3scouts.com</a>
   </p>
 
 </div>
