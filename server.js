@@ -1290,13 +1290,30 @@ app.post('/account/request-access', async (req, res) => {
     const { Pool } = require('pg');
     const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const client = await pool.connect();
-    const result = await client.query(
-      'SELECT name, access_token FROM subscribers WHERE email = $1 AND active = true',
+    let result = await client.query(
+      'SELECT name, access_token FROM subscribers WHERE email = $1',
       [email.toLowerCase().trim()]
     );
+
+    // If no account exists, create one automatically for new app users
+    if (!result.rows.length) {
+      const newToken = require('crypto').randomBytes(16).toString('hex');
+      const firstName = email.split('@')[0]; // Use email prefix as placeholder name
+      await client.query(
+        `INSERT INTO subscribers (name, email, plan, category, description, territories, frequency, active, deep_analyses_limit, deep_analyses_used, access_token)
+         VALUES ($1, $2, 'Free Valuation', 'Free Valuation', '', 'all', 'twice', false, 3, 0, $3)
+         ON CONFLICT (email) DO NOTHING`,
+        [firstName, email.toLowerCase().trim(), newToken]
+      );
+      result = await client.query(
+        'SELECT name, access_token FROM subscribers WHERE email = $1',
+        [email.toLowerCase().trim()]
+      );
+    }
+
     client.release();
     await pool.end();
-    if (!result.rows.length) return; // Silently do nothing — don't reveal
+    if (!result.rows.length) return;
     const { name, access_token } = result.rows[0];
     const accountUrl = `${process.env.SITE_URL}/install/${access_token}`;
     const appUrl = `3scouts://login?token=${access_token}`;
