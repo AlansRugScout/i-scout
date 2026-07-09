@@ -1285,6 +1285,18 @@ app.post('/account/request-access', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email required' });
   // Always return 200 — never reveal whether email exists
   res.json({ success: true });
+
+  // ── DEMO ACCOUNT for Apple App Review ──
+  // demo@3scouts.com always accepts code 123456
+  if (email.toLowerCase().trim() === 'demo@3scouts.com') {
+    loginCodes.set('demo@3scouts.com', {
+      code: '123456',
+      accessToken: process.env.DEMO_ACCESS_TOKEN || 'demo-token-3scouts',
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+    });
+    return;
+  }
+
   // Fire email in background
   try {
     const { Pool } = require('pg');
