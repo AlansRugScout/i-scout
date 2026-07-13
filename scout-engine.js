@@ -1168,10 +1168,10 @@ async function upsertSubscriber(data) {
   const client = await pool.connect();
   try {
     const deepLimit = data.plan?.includes('Dealer') ? 150 : data.plan?.includes('Collector') ? 60 : 20;
+    const accessToken = require('crypto').randomBytes(16).toString('hex');
     await client.query(
-const accessToken = require('crypto').randomBytes(16).toString('hex');
-    `INSERT INTO subscribers (name, email, plan, category, description, budget, negative_keywords, territories, frequency, active, deep_analyses_limit)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10)
+      `INSERT INTO subscribers (name, email, plan, category, description, budget, negative_keywords, territories, frequency, active, deep_analyses_limit, access_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11)
        ON CONFLICT (email) DO UPDATE SET
          name = EXCLUDED.name,
          plan = EXCLUDED.plan,
@@ -1182,9 +1182,10 @@ const accessToken = require('crypto').randomBytes(16).toString('hex');
          territories = EXCLUDED.territories,
          frequency = EXCLUDED.frequency,
          active = true,
-         deep_analyses_limit = EXCLUDED.deep_analyses_limit`,
+         deep_analyses_limit = EXCLUDED.deep_analyses_limit,
+         access_token = COALESCE(subscribers.access_token, EXCLUDED.access_token)`,
       [data.name, data.email, data.plan, data.category, data.description,
-       data.budget, data.negative, data.territories, data.frequency, deepLimit]
+       data.budget, data.negative, data.territories, data.frequency, deepLimit, accessToken]
     );
   } finally {
     client.release();
