@@ -22,9 +22,9 @@ const { Pool } = require('pg');
 //    the IAP path grants the IDENTICAL monthly allowance as Stripe does.
 //    Labels must match your existing planLabels exactly (em dash included).
 const IAP_PLANS = {
-  'com.alankeane.3scouts.starter.monthly':   { plan: '3scouts Starter — $9.99/month',   limit: 10 },
-  'com.alankeane.3scouts.collector.monthly': { plan: '3scouts Collector — $19.99/month', limit: 30 },
-  'com.alankeane.3scouts.dealer.monthly':    { plan: '3scouts Dealer — $49.99/month',    limit: 100 },
+  'com.alankeane.3scouts.starter.monthly':   { plan: '3scouts Starter — $9.99/month',   limit: 20 },
+  'com.alankeane.3scouts.collector.monthly': { plan: '3scouts Collector — $19.99/month', limit: 60 },
+  'com.alankeane.3scouts.dealer.monthly':    { plan: '3scouts Dealer — $49.99/month',    limit: 150 },
 };
 
 const TOPUP_PRODUCT_ID = 'com.alankeane.3scouts.topup10';
