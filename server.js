@@ -1371,27 +1371,59 @@ app.post('/account/request-access', async (req, res) => {
 });
 
 // Verify 6-digit code from app login screen -> return access token
-app.post('/account/verify-code', (req, res) => {
+app.post('/account/verify-code', async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ error: 'Email and code required' });
 
-  const entry = loginCodes.get(email.toLowerCase().trim());
+  const key = email.toLowerCase().trim();
+  const entry = loginCodes.get(key);
   if (!entry) {
     return res.status(400).json({ error: 'Code expired or not found. Please request a new code.' });
   }
   if (entry.expires < Date.now()) {
-    loginCodes.delete(email.toLowerCase().trim());
+    loginCodes.delete(key);
     return res.status(400).json({ error: 'Code expired. Please request a new code.' });
   }
   if (entry.code !== String(code).trim()) {
     return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
   }
 
-  // Success — consume the code and return token
-  loginCodes.delete(email.toLowerCase().trim());
-  res.json({ success: true, token: entry.accessToken });
-});
+  // Success — consume the code
+  loginCodes.delete(key);
 
+  // Enrich with current entitlement (non-fatal if it fails — token still returns)
+  let entitlement = null;
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const r = await client.query(
+      'SELECT plan, active, deep_analyses_limit, deep_analyses_used FROM subscribers WHERE access_token = $1',
+      [entry.accessToken]
+    );
+    client.release();
+    await pool.end();
+
+    if (r.rows.length) {
+      const s = r.rows[0];
+      const remaining = Math.max(0, (s.deep_analyses_limit || 0) - (s.deep_analyses_used || 0));
+      // Paid subscriber on either rail = active AND not the Free Valuation tier.
+      const isSubscribed = s.active === true && s.plan && s.plan !== 'Free Valuation';
+      entitlement = {
+        plan: s.plan,
+        active: s.active,
+        isSubscribed,              // app: true → suppress paywall, show "you're subscribed"
+        deep_analyses_limit: s.deep_analyses_limit,
+        deep_analyses_used: s.deep_analyses_used,
+        remaining,
+      };
+    }
+  } catch (err) {
+    console.error('verify-code entitlement lookup error:', err.message);
+  }
+
+  res.json({ success: true, token: entry.accessToken, entitlement });
+});
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
 
 app.get('/privacy', (req, res) => {
