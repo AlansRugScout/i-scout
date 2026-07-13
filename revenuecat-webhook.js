@@ -24,7 +24,7 @@ const { Pool } = require('pg');
 const IAP_PLANS = {
   'com.alankeane.3scouts.starter.monthly':   { plan: '3scouts Starter — $9.99/month',   limit: 20 },
   'com.alankeane.3scouts.collector.monthly': { plan: '3scouts Collector — $19.99/month', limit: 60 },
-  'com.alankeane.3scouts.dealer.monthly':    { plan: '3scouts Dealer — $49.99/month',    limit: 150 },
+  'com.alankeane.3scouts.dealer.month':      { plan: '3scouts Dealer — $49.99/month',    limit: 150 },
 };
 
 const TOPUP_PRODUCT_ID = 'com.alankeane.3scouts.topup10';
@@ -39,6 +39,22 @@ function planFor(productId) {
 }
 
 function setupRevenueCatWebhook(app) {
+  // Create the idempotency table automatically on startup (safe to run every time).
+  (async () => {
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    try {
+      await pool.query(`CREATE TABLE IF NOT EXISTS processed_iap_events (
+        event_id     TEXT PRIMARY KEY,
+        processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`);
+      console.log('RevenueCat: processed_iap_events table ready');
+    } catch (err) {
+      console.error('RevenueCat: could not ensure processed_iap_events table:', err.message);
+    } finally {
+      await pool.end();
+    }
+  })();
+
   app.post('/webhooks/revenuecat', async (req, res) => {
     // 1. Verify the shared secret RevenueCat sends in the Authorization header
     const auth = req.headers['authorization'] || '';
