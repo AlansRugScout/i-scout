@@ -1442,14 +1442,15 @@ if (entry.expires < Date.now()) {
     return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
   }
 
-  // Success — consume the code and return token
+// Success — consume the code and return token
   loginCodes.delete(email.toLowerCase().trim());
   res.json({ success: true, token: entry.accessToken });
+} catch (err) {
+  console.error('verify-code error:', err);
+  res.status(500).json({ error: 'Server error' });
+}
 });
-
-// ── ACCOUNT PORTAL ─────────────────────────────────────────────
-
-app.get('/privacy', (req, res) => {
+// ── ACCOUNT PORTAL ─────────────────────────────────────────────app.get('/privacy', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'privacy.html'));
 });
 
