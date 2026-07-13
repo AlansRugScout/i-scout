@@ -275,8 +275,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-const { setupRevenueCatWebhook } = require('./revenuecat-webhook');
-setupRevenueCatWebhook(app);
+
 // ── CHECKOUT SESSION ──────────────────────────────────────────────
 app.post('/create-checkout-session', async (req, res) => {
   const { plan, category, description, budget, name, email, negative, territories, frequency, images } = req.body;
@@ -1370,71 +1369,17 @@ app.post('/account/request-access', async (req, res) => {
     console.error('Account access email error:', err.message);
   }
 });
-// ── REPLACE your existing app.post('/account/verify-code', ...) handler
-//    (currently ~lines 1373–1393 of server.js) with this version.
-//
-// Changes: handler is now async and, on success, also returns an
-// `entitlement` object so the app can (a) call Purchases.logIn(token)
-// and (b) immediately decide whether to show the paywall or the
-// "you're already subscribed" state — in a single round-trip.
-//
-// Backward-compatible: still returns { success, token }; `entitlement`
-// is simply added (null if the token has no subscriber row yet, e.g. demo).
 
-app.post('/account/verify-code', async (req, res) => {
+// Verify 6-digit code from app login screen -> return access token
+app.post('/account/verify-code', (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ error: 'Email and code required' });
 
-  const key = email.toLowerCase().trim();
-  const entry = loginCodes.get(key);
+  const entry = loginCodes.get(email.toLowerCase().trim());
   if (!entry) {
     return res.status(400).json({ error: 'Code expired or not found. Please request a new code.' });
   }
   if (entry.expires < Date.now()) {
-    loginCodes.delete(key);
-    return res.status(400).json({ error: 'Code expired. Please request a new code.' });
-  }
-  if (entry.code !== String(code).trim()) {
-    return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
-  }
-
-  // Success — consume the code
-  loginCodes.delete(key);
-
-  // Enrich with current entitlement (non-fatal if it fails — token still returns)
-  let entitlement = null;
-  try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-    const client = await pool.connect();
-    const r = await client.query(
-      'SELECT plan, active, deep_analyses_limit, deep_analyses_used FROM subscribers WHERE access_token = $1',
-      [entry.accessToken]
-    );
-    client.release();
-    await pool.end();
-
-    if (r.rows.length) {
-      const s = r.rows[0];
-      const remaining = Math.max(0, (s.deep_analyses_limit || 0) - (s.deep_analyses_used || 0));
-      // Paid subscriber on either rail = active AND not the Free Valuation tier.
-      const isSubscribed = s.active === true && s.plan && s.plan !== 'Free Valuation';
-      entitlement = {
-        plan: s.plan,
-        active: s.active,
-        isSubscribed,              // app: true → suppress paywall, show "you're subscribed"
-        deep_analyses_limit: s.deep_analyses_limit,
-        deep_analyses_used: s.deep_analyses_used,
-        remaining,
-      };
-    }
-  } catch (err) {
-    console.error('verify-code entitlement lookup error:', err.message);
-  }
-
-  res.json({ success: true, token: entry.accessToken, entitlement });
-});
-if (entry.expires < Date.now()) {
     loginCodes.delete(email.toLowerCase().trim());
     return res.status(400).json({ error: 'Code expired. Please request a new code.' });
   }
@@ -1442,15 +1387,14 @@ if (entry.expires < Date.now()) {
     return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
   }
 
-// Success — consume the code and return token
+  // Success — consume the code and return token
   loginCodes.delete(email.toLowerCase().trim());
   res.json({ success: true, token: entry.accessToken });
-} catch (err) {
-  console.error('verify-code error:', err);
-  res.status(500).json({ error: 'Server error' });
-}
 });
-// ── ACCOUNT PORTAL ─────────────────────────────────────────────app.get('/privacy', (req, res) => {
+
+// ── ACCOUNT PORTAL ─────────────────────────────────────────────
+
+app.get('/privacy', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'privacy.html'));
 });
 
