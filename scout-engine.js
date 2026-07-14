@@ -857,10 +857,6 @@ async function sendValuationEmail(subscriber, description, analysisText, imageDa
           <p style="font-size:13px;color:rgba(255,255,255,0.45);margin:0;">${dateStr}</p>
         </div>
 
-        ${firstImage ? `<div style="background:#1a0e05;text-align:center;padding:1rem 1.5rem;border-bottom:1px solid #3a2a15;">
-          <img src="${firstImage}" alt="Submitted item" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:3px;">
-        </div>` : ''}
-
         <div style="padding:1.75rem 1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;text-align:center;">
           <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Your full valuation report is ready — item identification, authenticity assessment, condition grading, comparable sales and our valuation.</p>
           <a href="${reportUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;border-radius:3px;text-decoration:none;">View Full Report →</a>
@@ -1066,7 +1062,12 @@ Be specific, expert and honest. Note that without physically examining the item,
 
     // Send notification email with report link BEFORE incrementing usage
     // so if email fails, the customer can try again
-    await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
+    try {
+      await sendValuationEmail(subscriber, description, analysisText, imageDataUrls, reportId, reportToken);
+      console.log(`Valuation report email sent to ${subscriber.email}`);
+    } catch (emailErr) {
+      console.error(`Valuation report email FAILED for ${subscriber.email}:`, emailErr.message);
+    }
 
     // Only increment usage after successful email delivery
     await client.query(
