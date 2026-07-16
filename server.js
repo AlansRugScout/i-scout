@@ -1404,7 +1404,68 @@ app.post('/account/verify-code', async (req, res) => {
     );
     client.release();
     await pool.end();
+// ── SAVE BRIEF (APP-SAFE, NO PAYMENT) ──────────────────────────────
+// Lets a signed-in app user create/update their Scout brief WITHOUT
+// touching Stripe checkout. Required because launching an external
+// payment flow from inside the iOS app breaks App Store Guideline 3.1.1.
+//
+// ADD this to server.js anywhere below express.json() — e.g. directly
+// after the app.get('/account/data', ...) handler (~line 1443).
+//
+// The token check matches every other /account/* route: 32 hex chars.
 
+app.post('/account/save-brief', async (req, res) => {
+  const { token, description, negative, budget, territories, frequency } = req.body;
+
+  if (!token || !/^[a-f0-9]{32}$/.test(token)) {
+    return res.status(400).json({ error: 'Invalid token' });
+  }
+  if (!description || !description.trim()) {
+    return res.status(400).json({ error: 'Please describe what you are scouting for.' });
+  }
+  if (!territories || !territories.trim()) {
+    return res.status(400).json({ error: 'Please select at least one eBay market.' });
+  }
+
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+
+    const result = await client.query(
+      `UPDATE subscribers
+          SET description       = $1,
+              negative          = $2,
+              negative_keywords = $2,
+              budget            = $3,
+              territories       = $4,
+              frequency         = $5
+        WHERE access_token = $6
+        RETURNING email`,
+      [
+        description.trim().substring(0, 2000),
+        (negative || '').substring(0, 200),
+        (budget || '').substring(0, 100),
+        territories,
+        frequency || 'twice',
+        token,
+      ]
+    );
+
+    client.release();
+    await pool.end();
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    console.log('Scout brief saved for', result.rows[0].email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('save-brief error:', err.message);
+    res.status(500).json({ error: 'Server error — please try again' });
+  }
+});
     if (r.rows.length) {
       const s = r.rows[0];
       const remaining = Math.max(0, (s.deep_analyses_limit || 0) - (s.deep_analyses_used || 0));
