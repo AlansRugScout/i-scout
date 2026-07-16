@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up your Scout · 3scouts</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #2c1f0e; --ink-lt: #4a3a22; --gold: #c9922a; --gold-lt: #e8b84b;
+    --parchment: #f5edd6; --parchment-dk: #e8d9b5; --sepia: #8b6344;
+    --sepia-lt: #b8945a; --white: #fffdf7; --red: #8b2020;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--parchment); color: var(--ink);
+    font-family: 'EB Garamond', serif; font-size: 17px; line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+  .head { background: var(--ink); padding: 1.5rem 1.25rem; text-align: center; }
+  .logo { font-family: 'Cinzel', serif; font-size: 24px; color: var(--gold-lt); letter-spacing: 4px; }
+  .tag { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+  h2 { font-family: 'Cinzel', serif; font-size: 20px; color: var(--ink); margin-bottom: 0.5rem; }
+  .intro { font-size: 15px; color: var(--sepia); margin-bottom: 1.75rem; }
+  .group { margin-bottom: 1.5rem; }
+  label.field {
+    display: block; font-family: 'Cinzel', serif; font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .opt { font-family: 'EB Garamond', serif; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--sepia); }
+  input[type=text], textarea, select {
+    width: 100%; background: var(--white); border: 1px solid var(--sepia-lt);
+    border-radius: 3px; padding: 12px; font-family: 'EB Garamond', serif;
+    font-size: 16px; color: var(--ink); line-height: 1.5;
+  }
+  textarea { min-height: 130px; resize: vertical; }
+  .hint { font-size: 13px; color: var(--sepia); margin-top: 0.4rem; font-style: italic; }
+  .markets {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    background: var(--white); border: 1px solid var(--sepia-lt); border-radius: 3px; padding: 14px;
+  }
+  .market { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink-lt); cursor: pointer; }
+  .market input { width: 18px; height: 18px; accent-color: var(--gold); }
+  button.submit {
+    width: 100%; background: var(--gold); color: var(--ink); border: none;
+    border-radius: 3px; padding: 16px; font-family: 'Cinzel', serif; font-size: 13px;
+    font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  }
+  button.submit:disabled { opacity: 0.6; }
+  .msg { padding: 12px; border-radius: 3px; margin-bottom: 1rem; font-size: 15px; display: none; }
+  .msg.err { background: #f8e0e0; color: var(--red); border: 1px solid var(--red); display: block; }
+  .done { text-align: center; padding: 3rem 1rem; }
+  .done h2 { margin-bottom: 1rem; }
+  .done p { color: var(--sepia); margin-bottom: 0.75rem; }
+  .tick { font-size: 48px; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="logo">3scouts</div>
+  <div class="tag">Find it · Appraise it · Value it</div>
+</div>
+
+<div class="wrap" id="form-wrap">
+  <h2>Tell Scout One what to watch for</h2>
+  <p class="intro">The more specific your brief, the fewer irrelevant alerts you'll receive.</p>
+
+  <div class="msg" id="msg"></div>
+
+  <form id="brief" onsubmit="save(event)">
+    <div class="group">
+      <label class="field" for="description">What are you scouting for?</label>
+      <textarea id="description" placeholder="Be as specific as possible — maker, period, style, condition, size, signatures, markings, anything that helps us find exactly what you're looking for." required></textarea>
+      <p class="hint">Examples: "1960s Irish rugby programmes, autographed" · "19th century US baseball cards" · "John Speed county maps, original hand colour, pre-1650"</p>
+    </div>
+
+    <div class="group">
+      <label class="field" for="negative">Exclude from my alerts <span class="opt">(optional)</span></label>
+      <input type="text" id="negative" placeholder="e.g. reproduction, damaged, parts only">
+      <p class="hint">Words you never want to see in your alerts. Separate with commas.</p>
+    </div>
+
+    <div class="group">
+      <label class="field" for="budget">Maximum price per item <span class="opt">(optional)</span></label>
+      <input type="text" id="budget" placeholder="e.g. $500 — or leave blank for no limit">
+    </div>
+
+    <div class="group">
+      <label class="field">Where should we search? <span class="opt" style="color:var(--red);">— select at least one</span></label>
+      <div class="markets">
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_GB"> United Kingdom</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_IE"> Ireland</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_US"> United States</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_AU"> Australia</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_CA"> Canada</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_DE"> Germany</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_FR"> France</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_IT"> Italy</label>
+        <label class="market"><input type="checkbox" name="territories" value="EBAY_ES"> Spain</label>
+      </div>
+      <p class="hint">Tick all markets you're happy to buy from. Consider shipping costs and import duties for overseas markets.</p>
+    </div>
+
+    <div class="group">
+      <label class="field" for="frequency">Alert frequency</label>
+      <select id="frequency">
+        <option value="immediate">As they happen (immediate)</option>
+        <option value="morning">Morning digest (8am daily)</option>
+        <option value="evening">Evening digest (6pm daily)</option>
+        <option value="twice" selected>Twice daily (8am &amp; 6pm) — recommended</option>
+        <option value="weekly">Weekly summary (Monday morning)</option>
+      </select>
+    </div>
+
+    <button type="submit" class="submit" id="btn">Save my brief →</button>
+    <p class="hint" style="text-align:center;margin-top:1rem;">
+      Reference photos help enormously — email them to
+      <a href="mailto:alan@3scouts.com" style="color:var(--gold);">alan@3scouts.com</a> and we'll add them to your brief.
+    </p>
+  </form>
+</div>
+
+<div class="wrap done" id="done" style="display:none;">
+  <div class="tick">◈</div>
+  <h2>Scout One is on the case</h2>
+  <p>Your brief is saved and Scout One starts watching eBay within the hour.</p>
+  <p>You can close this page and return to the app.</p>
+</div>
+
+<script>
+function token() {
+  return new URLSearchParams(window.location.search).get('t') || '';
+}
+
+function showErr(text) {
+  const m = document.getElementById('msg');
+  m.textContent = text;
+  m.className = 'msg err';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Pre-fill from the existing brief, if there is one
+async function load() {
+  const t = token();
+  if (!t) { showErr('Missing account link. Please open this page from the 3scouts app.'); return; }
+  try {
+    const res = await fetch('/account/data?t=' + encodeURIComponent(t));
+    const d = await res.json();
+    if (d.error) return;
+    if (d.description) document.getElementById('description').value = d.description;
+    if (d.negative) document.getElementById('negative').value = d.negative;
+    if (d.territories) {
+      const set = d.territories.split(',');
+      document.querySelectorAll('input[name="territories"]').forEach(cb => {
+        if (set.includes(cb.value)) cb.checked = true;
+      });
+    }
+  } catch (e) { /* non-fatal — form still works empty */ }
+}
+load();
+
+async function save(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn');
+  const territories = Array.from(document.querySelectorAll('input[name="territories"]:checked')).map(cb => cb.value);
+
+  if (territories.length === 0) { showErr('Please select at least one eBay market to search.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch('/account/save-brief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token:       token(),
+        description: document.getElementById('description').value,
+        negative:    document.getElementById('negative').value,
+        budget:      document.getElementById('budget').value,
+        territories: territories.join(','),
+        frequency:   document.getElementById('frequency').value,
+      }),
+    });
+    const d = await res.json();
+    if (d.success) {
+      document.getElementById('form-wrap').style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+    } else {
+      throw new Error(d.error || 'Unknown error');
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Save my brief →';
+    showErr(err.message || 'Something went wrong — please try again.');
+  }
+}
+</script>
+
+</body>
+</html>
