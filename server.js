@@ -1102,14 +1102,14 @@ function generateReportPage(report, images, isEbay, dateStr) {
 <body>
 
 <nav>
-  <a href="/" class="nav-logo">
+  <div class="nav-logo">
     <div style="display:flex;align-items:center;gap:4px;">
       <span style="display:block;width:9px;height:9px;border-radius:50%;background:#c9922a;"></span>
       <span style="display:block;width:9px;height:9px;border-radius:50%;background:#e8b84b;"></span>
       <span style="display:block;width:9px;height:9px;border-radius:50%;background:#c9922a;opacity:0.5;"></span>
     </div>
     3scouts<span style="font-size:0.72rem;color:#c9922a;letter-spacing:0.06em;">.com</span>
-  </a>
+  </div>
   <div class="nav-btns">
     <button class="btn-nav btn-nav--print" onclick="window.print()">🖨 Print</button>
     <button class="btn-nav" onclick="savePDF()">⬇ Save as PDF</button>
