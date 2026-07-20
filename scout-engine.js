@@ -1220,10 +1220,13 @@ async function runScouts() {
     const dayOfWeek = irishTime.getDay(); // 0=Sun, 1=Mon
 
     const { rows: subscribers } = await client.query(
-      'SELECT * FROM subscribers WHERE active = true'
+      // Scout One is a paid feature: only scan active PAID subscribers.
+      // Free ('Free Valuation') accounts are excluded so they never consume
+      // eBay quota or AI cost — they get the 3 free appraisals only.
+      "SELECT * FROM subscribers WHERE active = true AND plan IS NOT NULL AND plan <> 'Free Valuation'"
     );
 
-    console.log(`Scout run started — ${subscribers.length} active subscriber(s) — ${irishTime.toLocaleString('en-IE')}`);
+    console.log(`Scout run started — ${subscribers.length} paid subscriber(s) — ${irishTime.toLocaleString('en-IE')}`);
 
     const token = await getEbayToken();
 
