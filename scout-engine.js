@@ -107,6 +107,11 @@ async function getEbayToken() {
 
 async function searchEbay(subscriber, token) {
   const keywords = await buildSearchKeywords(subscriber);
+  // No real brief (empty/placeholder) → nothing to search, skip eBay entirely.
+  if (!keywords) {
+    console.log(`Skipping eBay search for ${subscriber.email} — no brief set`);
+    return [];
+  }
   console.log(`Search keywords for ${subscriber.email}: "${keywords}"`);
 
   const marketplace = getEbayMarketplace(subscriber.territories);
@@ -181,6 +186,15 @@ async function searchEbay(subscriber, token) {
 }
 
 async function buildSearchKeywords(subscriber) {
+  // Skip accounts with no real brief yet — an empty or placeholder
+  // ('Free Valuation') description would just waste an AI call and an
+  // eBay lookup (the model correctly refuses to search a service name).
+  const brief = (subscriber.description || '').trim();
+  if (!brief || brief === 'Free Valuation') {
+    console.log(`Skipping keyword extraction for ${subscriber.email} — no brief set yet`);
+    return null;
+  }
+
   try {
     const prompt = `You are an eBay search expert. Convert this collector's description into the best possible eBay search keywords.
 
@@ -208,11 +222,26 @@ Examples:
 
 Return ONLY the keywords, no explanation, and preserve any double quotes exactly as needed.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 50,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    // Retry on transient 529 "overloaded" errors — they usually clear in seconds.
+    let response;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 50,
+          messages: [{ role: 'user', content: prompt }],
+        });
+        break; // success
+      } catch (e) {
+        const overloaded = e.status === 529 || /overloaded/i.test(e.message || '');
+        if (overloaded && attempt < 3) {
+          console.log(`Keyword extraction overloaded (attempt ${attempt}) — retrying in ${attempt}s`);
+          await new Promise(r => setTimeout(r, attempt * 1000)); // 1s, then 2s
+          continue;
+        }
+        throw e; // non-retryable, or out of attempts
+      }
+    }
 
     // Preserve double quotes (for exact phrase matching) but strip stray single quotes
     let keywords = response.content[0].text.trim().replace(/'/g, '');
@@ -866,7 +895,7 @@ async function sendValuationEmail(subscriber, description, analysisText, imageDa
         ${!subscriber.active ? `
         <div style="background:#2c1f0e;padding:1.25rem 1.5rem;border-bottom:1px solid #c9922a;">
           <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1px;text-transform:uppercase;margin:0 0 0.5rem;">Enjoyed your appraisal?</p>
-          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. Your first 7 days are free.</p>
+          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. First 30 days free.</p>
           <a href="https://www.3scouts.com/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;border-radius:3px;text-decoration:none;">Start my free trial →</a>
         </div>` : ''}
 
@@ -897,9 +926,9 @@ async function sendValuationFollowUp(email, name) {
         </div>
         <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
           <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">We hope your 3scouts valuation report was useful. If you'd like us to keep working for you — watching eBay around the clock for whatever you collect, alerting you the moment a genuine find appears with a full professional appraisal — we'd love to have you as a subscriber.</p>
-          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Whenever you'd like more, a 3scouts subscription gives you <strong>20 Deep Analyses every month</strong> plus continuous eBay monitoring — from $9.99/month, with a free trial to start and no commitment. There's no rush: explore the plans whenever it suits you.</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Your first <strong>7 days are completely free</strong> — 10 Deep Analyses per month plus continuous eBay monitoring. Then just $9.99 a month. No contracts, no commitments — cancel anytime before day 8 and you won't be charged a penny.</p>
           <p style="font-size:13px;color:#8b6344;line-height:1.75;margin:0 0 1.5rem;font-style:italic;">Important: Before buying or selling on the basis of your report, we recommend independently verifying key facts and recent comparable sales — particularly for trading cards, coins, stamps and items from specialist or regional markets. Values in these categories can vary significantly based on condition grading, regional demand and recent auction results.</p>
-          <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">See subscription plans →</a>
+          <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my free trial →</a>
         </div>
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
@@ -1099,7 +1128,7 @@ Be specific, expert and honest. Note that without physically examining the item,
               </div>
               <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
                 <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">You have <strong>1 free appraisal remaining</strong> on your 3scouts account.</p>
-                <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">When you're ready for more, start your 7-day free trial — <strong>20 Deep Analyses per month</strong> plus Scout One watching eBay around the clock for whatever you collect. No charge until day 7, cancel anytime.</p>
+                <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">When you're ready for more, start your 7-day free trial — <strong>10 Deep Analyses per month</strong> plus Scout One watching eBay around the clock for whatever you collect. No charge until day 8, cancel anytime.</p>
                 <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my free trial →</a>
               </div>
               <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
@@ -1220,13 +1249,10 @@ async function runScouts() {
     const dayOfWeek = irishTime.getDay(); // 0=Sun, 1=Mon
 
     const { rows: subscribers } = await client.query(
-      // Scout One is a paid feature: only scan active PAID subscribers.
-      // Free ('Free Valuation') accounts are excluded so they never consume
-      // eBay quota or AI cost — they get the 3 free appraisals only.
-      "SELECT * FROM subscribers WHERE active = true AND plan IS NOT NULL AND plan <> 'Free Valuation'"
+      'SELECT * FROM subscribers WHERE active = true'
     );
 
-    console.log(`Scout run started — ${subscribers.length} paid subscriber(s) — ${irishTime.toLocaleString('en-IE')}`);
+    console.log(`Scout run started — ${subscribers.length} active subscriber(s) — ${irishTime.toLocaleString('en-IE')}`);
 
     const token = await getEbayToken();
 
