@@ -892,7 +892,7 @@ async function sendValuationEmail(subscriber, description, analysisText, imageDa
           <p style="font-size:12px;color:#8b6344;margin:1rem 0 0;">Or copy this link: <a href="${reportUrl}" style="color:#c9922a;">${reportUrl}</a></p>
         </div>
 
-        ${!subscriber.active ? `
+        ${(!subscriber.plan || subscriber.plan === 'Free Valuation') ? `
         <div style="background:#2c1f0e;padding:1.25rem 1.5rem;border-bottom:1px solid #c9922a;">
           <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1px;text-transform:uppercase;margin:0 0 0.5rem;">Enjoyed your appraisal?</p>
           <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. First 30 days free.</p>
@@ -1238,15 +1238,6 @@ async function deactivateSubscriber(email) {
 // ── SCOUT RUN ─────────────────────────────────────────────────────
 
 async function runScouts() {
-  // Belt-and-braces: never allow two Scout runs to execute at the same time.
-  // Two concurrent runs race over the same listings and send duplicate digests
-  // containing different subsets of matches.
-  if (globalThis.__3scoutsRunInProgress) {
-    console.log('Scout run already in progress — skipping this trigger');
-    return;
-  }
-  globalThis.__3scoutsRunInProgress = true;
-
   const { Pool } = require('pg');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   const client = await pool.connect();
@@ -1371,25 +1362,12 @@ async function runScouts() {
   } finally {
     client.release();
     await pool.end();
-    globalThis.__3scoutsRunInProgress = false;  // always release, even on error
   }
 }
 
 // ── SCHEDULER ─────────────────────────────────────────────────────
 
 function scheduleTopOfHour() {
-  // Guard: only ever start ONE scheduler per process.
-  // We use globalThis (not a module-level variable) because if this module
-  // is ever evaluated twice — e.g. required via two different path spellings,
-  // which defeats Node's module cache — each evaluation would otherwise get
-  // its own copy of the flag and start a second timer, causing duplicate
-  // hourly Scout runs (two digests, racing over the same listings).
-  if (globalThis.__3scoutsSchedulerStarted) {
-    console.log('Scout scheduler already running — skipping duplicate start');
-    return;
-  }
-  globalThis.__3scoutsSchedulerStarted = true;
-
   const now = new Date();
   const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
   console.log(`Next Scout run in ${Math.round(msUntilNextHour / 60000)} minutes`);
@@ -1408,9 +1386,17 @@ async function processFollowUpQueue() {
   const client2 = await pool2.connect();
   try {
     const result = await client2.query(
-      `SELECT id, email, name FROM follow_up_queue
-       WHERE sent = FALSE AND send_after <= NOW()
-       LIMIT 10`
+      // Only send the subscription follow-up to people who are STILL not
+      // subscribed at send time. Someone may have subscribed between being
+      // queued and this running — pitching a subscription to an existing
+      // paying customer looks careless and undermines trust.
+      `SELECT q.id, q.email, q.name
+         FROM follow_up_queue q
+         LEFT JOIN subscribers s ON LOWER(s.email) = LOWER(q.email)
+        WHERE q.sent = FALSE
+          AND q.send_after <= NOW()
+          AND (s.id IS NULL OR s.plan IS NULL OR s.plan = 'Free Valuation')
+        LIMIT 10`
     );
     for (const row of result.rows) {
       try {
@@ -1420,6 +1406,22 @@ async function processFollowUpQueue() {
       } catch(e) {
         console.error(`Follow-up failed for ${row.email}:`, e.message);
       }
+    }
+
+    // Retire queue entries for anyone who has since subscribed — they no
+    // longer need the upsell, and this stops them being re-checked forever.
+    const retired = await client2.query(
+      `UPDATE follow_up_queue q
+          SET sent = TRUE
+         FROM subscribers s
+        WHERE LOWER(s.email) = LOWER(q.email)
+          AND q.sent = FALSE
+          AND q.send_after <= NOW()
+          AND s.plan IS NOT NULL
+          AND s.plan <> 'Free Valuation'`
+    );
+    if (retired.rowCount > 0) {
+      console.log(`Retired ${retired.rowCount} follow-up(s) — already subscribed`);
     }
   } finally {
     client2.release();
