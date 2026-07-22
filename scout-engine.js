@@ -1238,6 +1238,15 @@ async function deactivateSubscriber(email) {
 // ── SCOUT RUN ─────────────────────────────────────────────────────
 
 async function runScouts() {
+  // Belt-and-braces: never allow two Scout runs to execute at the same time.
+  // Two concurrent runs race over the same listings and send duplicate digests
+  // containing different subsets of matches.
+  if (globalThis.__3scoutsRunInProgress) {
+    console.log('Scout run already in progress — skipping this trigger');
+    return;
+  }
+  globalThis.__3scoutsRunInProgress = true;
+
   const { Pool } = require('pg');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   const client = await pool.connect();
@@ -1362,12 +1371,25 @@ async function runScouts() {
   } finally {
     client.release();
     await pool.end();
+    globalThis.__3scoutsRunInProgress = false;  // always release, even on error
   }
 }
 
 // ── SCHEDULER ─────────────────────────────────────────────────────
 
 function scheduleTopOfHour() {
+  // Guard: only ever start ONE scheduler per process.
+  // We use globalThis (not a module-level variable) because if this module
+  // is ever evaluated twice — e.g. required via two different path spellings,
+  // which defeats Node's module cache — each evaluation would otherwise get
+  // its own copy of the flag and start a second timer, causing duplicate
+  // hourly Scout runs (two digests, racing over the same listings).
+  if (globalThis.__3scoutsSchedulerStarted) {
+    console.log('Scout scheduler already running — skipping duplicate start');
+    return;
+  }
+  globalThis.__3scoutsSchedulerStarted = true;
+
   const now = new Date();
   const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
   console.log(`Next Scout run in ${Math.round(msUntilNextHour / 60000)} minutes`);
