@@ -257,6 +257,64 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
     }
   }
 
+  // ── MONTHLY RENEWAL ──────────────────────────────────────────────
+  // Without this, a paying web subscriber uses their allowance once and is
+  // then locked out forever while still being charged. Resets usage at the
+  // start of each new billing period.
+  //
+  // Unused TOP-UPS carry over; unused plan allowance does not. Top-ups are
+  // treated as consumed after the plan allowance, so the unused top-up count
+  // is: old_limit - MAX(allowance, old_used).
+  if (event.type === 'invoice.paid') {
+    const invoice = event.data.object;
+
+    // Only act on a genuine renewal — not the $0 trial-start invoice, and not
+    // the initial checkout (already handled by checkout.session.completed).
+    if (invoice.billing_reason === 'subscription_cycle') {
+      try {
+        let email = invoice.customer_email;
+        if (!email && invoice.customer) {
+          const customer = await stripe.customers.retrieve(invoice.customer);
+          email = customer.email;
+        }
+        if (!email) throw new Error('No customer email on invoice');
+
+        const { Pool } = require('pg');
+        const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+        const client = await pool.connect();
+
+        // Derive the plan allowance from the stored plan label
+        const cur = await client.query(
+          'SELECT plan, deep_analyses_limit, deep_analyses_used FROM subscribers WHERE LOWER(email) = LOWER($1)',
+          [email]
+        );
+
+        if (!cur.rows.length) {
+          console.error('Renewal: no subscriber found for', email);
+        } else {
+          const plan = cur.rows[0].plan || '';
+          const allowance = plan.includes('Dealer') ? 150 : plan.includes('Collector') ? 60 : 20;
+
+          const upd = await client.query(
+            `UPDATE subscribers
+                SET deep_analyses_used = 0,
+                    deep_analyses_limit = $1 + GREATEST(0, deep_analyses_limit - GREATEST($1, deep_analyses_used)),
+                    active = true
+              WHERE LOWER(email) = LOWER($2)
+              RETURNING deep_analyses_limit`,
+            [allowance, email]
+          );
+          console.log(`Renewal reset for ${email} — ${plan} — new limit ${upd.rows[0].deep_analyses_limit} (allowance ${allowance} + carried top-ups)`);
+        }
+
+        client.release();
+        await pool.end();
+      } catch (err) {
+        console.error('Renewal reset error:', err.message);
+      }
+    }
+  }
+
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
     try {
