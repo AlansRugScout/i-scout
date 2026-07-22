@@ -92,14 +92,19 @@ function setupRevenueCatWebhook(app) {
         case 'PRODUCT_CHANGE': {
           const p = planFor(productId);
           if (!p) { console.error('RevenueCat: unknown product', productId); break; }
-          const sql = RESET_USED_ON_RENEWAL
-            ? `UPDATE subscribers
-                  SET plan = $1, active = true, deep_analyses_limit = $2, deep_analyses_used = 0
-                WHERE access_token = $3`
-            : `UPDATE subscribers
-                  SET plan = $1, active = true, deep_analyses_limit = $2
-                WHERE access_token = $3`;
-          const r = await client.query(sql, [p.plan, p.limit, appUserId]);
+          // Reset usage for the new period, but CARRY OVER unused top-ups.
+          // Top-ups are treated as consumed after the plan allowance, so the
+          // unused top-up count is: old_limit - MAX(allowance, old_used).
+          // Matches the Stripe invoice.paid handler exactly.
+          const r = await client.query(
+            `UPDATE subscribers
+                SET plan = $1,
+                    active = true,
+                    deep_analyses_limit = $2 + GREATEST(0, deep_analyses_limit - GREATEST($2, deep_analyses_used)),
+                    deep_analyses_used = 0
+              WHERE access_token = $3`,
+            [p.plan, p.limit, appUserId]
+          );
           if (r.rowCount === 0) {
             console.error('RevenueCat: no subscriber matched access_token', appUserId,
                           '— user likely purchased before logIn(); investigate.');
