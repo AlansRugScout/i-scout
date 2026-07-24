@@ -42,6 +42,17 @@
   }
   .market { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink-lt); cursor: pointer; }
   .market input { width: 18px; height: 18px; accent-color: var(--gold); }
+  .market.locked { opacity: 0.4; cursor: not-allowed; }
+  .market.locked input { cursor: not-allowed; }
+  .lock-tag { font-size: 11px; color: var(--sepia-lt); font-style: italic; }
+  .plan-banner {
+    background: var(--white); border: 1px solid var(--sepia-lt); border-left: 3px solid var(--gold);
+    border-radius: 3px; padding: 12px 14px; margin-bottom: 1.5rem; font-size: 14px; color: var(--ink-lt);
+  }
+  .plan-banner strong { color: var(--ink); }
+  .counter { font-size: 13px; color: var(--sepia); margin-top: 0.4rem; }
+  .counter.full { color: var(--red); }
+  .upgrade-note { font-size: 13px; color: var(--sepia); font-style: italic; margin-top: 0.4rem; }
   button.submit {
     width: 100%; background: var(--gold); color: var(--ink); border: none;
     border-radius: 3px; padding: 16px; font-family: 'Cinzel', serif; font-size: 13px;
@@ -67,6 +78,7 @@
   <h2>Tell Scout One what to watch for</h2>
   <p class="intro">The more specific your brief, the fewer irrelevant alerts you'll receive.</p>
 
+  <div class="plan-banner" id="plan-banner" style="display:none;"></div>
   <div class="msg" id="msg"></div>
 
   <form id="brief" onsubmit="save(event)">
@@ -100,7 +112,8 @@
         <label class="market"><input type="checkbox" name="territories" value="EBAY_IT"> Italy</label>
         <label class="market"><input type="checkbox" name="territories" value="EBAY_ES"> Spain</label>
       </div>
-      <p class="hint">Tick all markets you're happy to buy from. Consider shipping costs and import duties for overseas markets.</p>
+      <p class="counter" id="market-counter"></p>
+      <p class="hint">Tick the markets you're happy to buy from. Consider shipping costs and import duties for overseas markets.</p>
     </div>
 
     <div class="group">
@@ -112,6 +125,7 @@
         <option value="weekly">Weekly summary (Monday morning)</option>
         <option value="immediate">As they happen (immediate)</option>
       </select>
+      <p class="upgrade-note" id="freq-note"></p>
     </div>
 
     <button type="submit" class="submit" id="btn">Save my brief →</button>
@@ -142,6 +156,66 @@ function showErr(text) {
 }
 
 // Pre-fill from the existing brief, if there is one
+// Mirrors the backend planLimits() in scout-engine.js — keep in step.
+function planLimits(plan) {
+  const p = plan || '';
+  if (p.includes('Dealer'))    return { maxMarkets: 9, tier: 'Dealer',    allowFreq: ['morning','evening','weekly','twice','immediate'] };
+  if (p.includes('Collector')) return { maxMarkets: 6, tier: 'Collector', allowFreq: ['morning','evening','weekly','twice'] };
+  return                              { maxMarkets: 3, tier: 'Starter',   allowFreq: ['morning','evening','weekly'] };
+}
+
+let LIMITS = planLimits('');
+
+function marketBoxes() {
+  return Array.from(document.querySelectorAll('input[name="territories"]'));
+}
+
+// Let them choose ANY N: once N are ticked, the rest lock until one is freed.
+function refreshMarketState() {
+  const boxes = marketBoxes();
+  const chosen = boxes.filter(b => b.checked).length;
+  const atLimit = chosen >= LIMITS.maxMarkets;
+
+  boxes.forEach(b => {
+    const lock = atLimit && !b.checked;
+    b.disabled = lock;
+    b.closest('.market').classList.toggle('locked', lock);
+  });
+
+  const counter = document.getElementById('market-counter');
+  counter.textContent = `${chosen} of ${LIMITS.maxMarkets} markets selected on your ${LIMITS.tier} plan`;
+  counter.classList.toggle('full', atLimit && LIMITS.maxMarkets < 9);
+}
+
+function applyPlanToForm() {
+  // Markets
+  refreshMarketState();
+  marketBoxes().forEach(b => b.addEventListener('change', refreshMarketState));
+
+  // Frequency — lock anything faster than the plan allows
+  const sel = document.getElementById('frequency');
+  const labels = { twice: 'Collector and above', immediate: 'Dealer only' };
+  let lockedAny = false;
+  Array.from(sel.options).forEach(o => {
+    if (!LIMITS.allowFreq.includes(o.value)) {
+      o.disabled = true;
+      if (!o.textContent.includes('—')) o.textContent += `  — ${labels[o.value] || 'higher plan'}`;
+      lockedAny = true;
+    }
+  });
+  if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = 'morning';
+  document.getElementById('freq-note').textContent = lockedAny
+    ? 'Faster alerts are available on higher plans.'
+    : '';
+
+  // Banner
+  const banner = document.getElementById('plan-banner');
+  banner.innerHTML = `You're on <strong>${LIMITS.tier}</strong> — any <strong>${LIMITS.maxMarkets}</strong> eBay market${LIMITS.maxMarkets > 1 ? 's' : ''} and ${
+    LIMITS.tier === 'Dealer' ? 'immediate alerts' : LIMITS.tier === 'Collector' ? 'alerts twice daily' : 'a daily digest'
+  }.`;
+  banner.style.display = 'block';
+}
+
 async function load() {
   const t = token();
   if (!t) { showErr('Missing account link. Please open this page from the 3scouts app.'); return; }
@@ -149,15 +223,19 @@ async function load() {
     const res = await fetch('/account/data?t=' + encodeURIComponent(t));
     const d = await res.json();
     if (d.error) return;
+
+    LIMITS = planLimits(d.plan);
+
     if (d.description) document.getElementById('description').value = d.description;
     if (d.negative) document.getElementById('negative').value = d.negative;
     if (d.territories) {
-      const set = d.territories.split(',');
+      const set = d.territories.split(',').slice(0, LIMITS.maxMarkets);
       document.querySelectorAll('input[name="territories"]').forEach(cb => {
         if (set.includes(cb.value)) cb.checked = true;
       });
     }
-  } catch (e) { /* non-fatal — form still works empty */ }
+  } catch (e) { /* non-fatal — form still works */ }
+  applyPlanToForm();
 }
 load();
 
@@ -167,6 +245,10 @@ async function save(e) {
   const territories = Array.from(document.querySelectorAll('input[name="territories"]:checked')).map(cb => cb.value);
 
   if (territories.length === 0) { showErr('Please select at least one eBay market to search.'); return; }
+  if (territories.length > LIMITS.maxMarkets) {
+    showErr(`Your ${LIMITS.tier} plan includes any ${LIMITS.maxMarkets} eBay markets. Please deselect a few.`);
+    return;
+  }
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
