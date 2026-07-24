@@ -102,12 +102,22 @@ function setupRevenueCatWebhook(app) {
                     active = true,
                     deep_analyses_limit = $2 + GREATEST(0, deep_analyses_limit - GREATEST($2, deep_analyses_used)),
                     deep_analyses_used = 0
-              WHERE access_token = $3`,
+              WHERE access_token = $3
+              RETURNING email, name`,
             [p.plan, p.limit, appUserId]
           );
           if (r.rowCount === 0) {
             console.error('RevenueCat: no subscriber matched access_token', appUserId,
                           '— user likely purchased before logIn(); investigate.');
+          } else if (type === 'INITIAL_PURCHASE') {
+            // App subscribers previously received NOTHING on purchase. Queue the
+            // same welcome sequence web subscribers get, so both rails match.
+            try {
+              const { queueSubscriberSequence } = require('./scout-engine');
+              await queueSubscriberSequence(r.rows[0].email, r.rows[0].name);
+            } catch (e) {
+              console.error('RevenueCat: could not queue subscriber sequence:', e.message);
+            }
           }
           break;
         }
