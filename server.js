@@ -10,6 +10,7 @@ const {
   runDeepAnalysis,
   runDeepAnalysisFromDescription,
   processFollowUpQueue,
+  queueSubscriberSequence,
 } = require('./scout-engine');
 
 const app = express();
@@ -248,10 +249,21 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       console.error('Database save error:', err.message);
     }
 
-    // Send welcome email
+    // Queue the new-subscriber email sequence (B1 welcome now, then B2/B3/B4).
+    // Replaces the old standalone welcome so subscribers get ONE welcome, and
+    // so web and app subscribers receive an identical sequence.
+    try {
+      await queueSubscriberSequence(data.email, data.name);
+      console.log('Subscriber sequence queued for', data.email);
+    } catch (err) {
+      console.error('Sequence queue error:', err.message);
+    }
+
+    // Trial/billing confirmation (states the trial end date) — factual, and
+    // separate from the B1 onboarding email, which follows shortly after.
     try {
       await sendWelcomeEmail(data);
-      console.log('Welcome email sent to', data.email);
+      console.log('Trial confirmation sent to', data.email);
     } catch (err) {
       console.error('Welcome email failed:', err.message);
     }
