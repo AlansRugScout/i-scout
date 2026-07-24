@@ -67,6 +67,18 @@ async function initDatabase() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    // Which email in the sequence this row represents (A1/A2/A3/B1…).
+    // Existing rows predate the sequence and are treated as the old A3 upsell.
+    await client.query(`
+      ALTER TABLE follow_up_queue
+      ADD COLUMN IF NOT EXISTS email_type VARCHAR(8) DEFAULT 'A3'
+    `);
+    // Guarantees each person receives each email in the sequence ONCE,
+    // however many times the trigger fires.
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS follow_up_queue_once
+      ON follow_up_queue (LOWER(email), email_type)
+    `);
     // Add access_token to subscribers if not present
     await client.query(`
       ALTER TABLE subscribers
@@ -911,24 +923,29 @@ async function sendValuationEmail(subscriber, description, analysisText, imageDa
 }
 
 
-async function sendValuationFollowUp(email, name) {
-  await resend.emails.send({
-    from: '3scouts <scout@3scouts.com>',
-    reply_to: 'alan@3scouts.com',
-    to: email,
-    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
-    subject: 'Did you enjoy your 3scouts appraisal?',
-    html: `
+// ── EMAIL SEQUENCE — SHARED WRAPPER ────────────────────────────────
+// Keeps the 3scouts chrome in one place so every email in the sequence
+// looks identical and only the copy changes.
+function sequenceEmailHtml({ kicker, heading, paragraphs, button }) {
+  const body = paragraphs.map(p =>
+    `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">${p}</p>`
+  ).join('\n          ');
+
+  const cta = button
+    ? `<a href="${button.url}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">${button.label}</a>`
+    : '';
+
+  return `
       <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
         <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
-          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · A note from us</p>
-          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Hope you enjoyed your appraisal, ${name}</h2>
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">${kicker}</p>
+          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">${heading}</h2>
         </div>
         <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">We hope your 3scouts valuation report was useful. If you'd like us to keep working for you — watching eBay around the clock for whatever you collect, alerting you the moment a genuine find appears with a full professional appraisal — we'd love to have you as a subscriber.</p>
-          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Whenever you'd like more, a 3scouts subscription gives you <strong>20 Deep Analyses every month</strong> plus continuous eBay monitoring — from $9.99/month, with a free trial to start and no commitment. There's no rush: explore the plans whenever it suits you.</p>
-          <p style="font-size:13px;color:#8b6344;line-height:1.75;margin:0 0 1.5rem;font-style:italic;">Important: Before buying or selling on the basis of your report, we recommend independently verifying key facts and recent comparable sales — particularly for trading cards, coins, stamps and items from specialist or regional markets. Values in these categories can vary significantly based on condition grading, regional demand and recent auction results.</p>
-          <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">See subscription plans →</a>
+          ${body}
+          ${cta}
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:1.5rem 0 0;">Best wishes,</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.5;margin:0.5rem 0 0;">Alan Keane<br><span style="color:#8b6344;font-size:13px;">Founder, 3scouts</span></p>
         </div>
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
@@ -936,9 +953,87 @@ async function sendValuationFollowUp(email, name) {
           </p>
         </div>
       </div>
-    `,
+  `;
+}
+
+function firstNameOf(name) {
+  return (name || '').trim().split(' ')[0] || 'there';
+}
+
+// ── TRACK A — FREE USERS ───────────────────────────────────────────
+
+// A1 · after their FIRST appraisal
+async function sendA1(email, name) {
+  const f = firstNameOf(name);
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: 'How did we do?',
+    html: sequenceEmailHtml({
+      kicker: '3scouts · A note from us',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `Your first 3scouts appraisal has landed — I hope it told you something you didn't already know.`,
+        `A word on getting the best out of the next one: the single biggest difference is photographs. Good natural light rather than flash, the back and base as well as the front, and a close-up of any hallmark, signature or maker's mark. Condition drives value more than almost anything else, so show any damage — it makes the valuation more accurate, not less generous.`,
+        `You have <strong>two free appraisals</strong> left. No time limit on them — use them whenever something interesting turns up.`,
+        `If anything in your report didn't make sense, just reply to this email. It comes straight to me.`,
+      ],
+    }),
   });
 }
+
+// A2 · after their SECOND appraisal
+async function sendA2(email, name) {
+  const f = firstNameOf(name);
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: 'One appraisal left',
+    html: sequenceEmailHtml({
+      kicker: '3scouts · A note from us',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `Just a quiet reminder: that's two of your three free appraisals used. One remaining, and no rush — it doesn't expire.`,
+        `If you're finding these useful, the thing most people don't realise is that the appraisals are only half of what 3scouts does. The other half is <strong>Scout One</strong> — it watches eBay around the clock for whatever you collect and tells you the moment something genuine appears, with a full assessment and a BUY, WATCH or PASS on it. That's the part subscribers tend to say they couldn't do without — and it's included with every subscription.`,
+        `More on that when you're ready.`,
+      ],
+    }),
+  });
+}
+
+// A3 · after their THIRD appraisal (allowance spent)
+async function sendA3(email, name) {
+  const f = firstNameOf(name);
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: `That's your three — here's what happens next`,
+    html: sequenceEmailHtml({
+      kicker: '3scouts · A note from us',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `You've now used all three of your free appraisals. I hope they enriched your knowledge about the items we appraised.`,
+        `If you'd like to carry on, a subscription gives you <strong>20 Deep Analyses every month</strong> and puts <strong>Scout One</strong> to work for you — watching eBay hour by hour for exactly what you collect, and flagging anything worth a second look before the rest of the market notices.`,
+        `From $9.99 a month, and you can cancel any time.`,
+        `Whatever you decide, thank you for giving 3scouts a go. If there's something that would make it more useful to you, I'd like to hear it — just reply directly to me.`,
+      ],
+      button: { url: `${process.env.SITE_URL}/#brief`, label: 'See the plans →' },
+    }),
+  });
+}
+
+// Router — maps a queued email_type to its sender.
+const SEQUENCE_SENDERS = {
+  A1: sendA1,
+  A2: sendA2,
+  A3: sendA3,
+};
 
 // ── SUBSCRIBER MANAGEMENT ─────────────────────────────────────────
 
@@ -1112,48 +1207,32 @@ Be specific, expert and honest. Note that without physically examining the item,
     const updated = usageResult.rows[0];
     const remaining = updated.deep_analyses_limit - updated.deep_analyses_used;
 
-    // Send "1 report remaining" warning to free users
-    if (updated.plan === 'Free Valuation' && remaining === 1) {
-      try {
-        await resend.emails.send({
-          from: '3scouts <scout@3scouts.com>',
-          to: subscriber.email,
-          bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
-          subject: 'You have 1 free appraisal remaining — 3scouts',
-          html: `
-            <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
-              <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
-                <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · A note from us</p>
-                <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Just so you know, ${subscriber.name.split(' ')[0]}</h2>
-              </div>
-              <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-                <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">You have <strong>1 free appraisal remaining</strong> on your 3scouts account.</p>
-                <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">When you're ready for more, start your 7-day free trial — <strong>20 Deep Analyses per month</strong> plus Scout One watching eBay around the clock for whatever you collect. No charge until day 7, cancel anytime.</p>
-                <a href="${process.env.SITE_URL}/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;white-space:nowrap;">Start my free trial →</a>
-              </div>
-              <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
-                <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · No contracts · Cancel anytime</p>
-              </div>
-            </div>
-          `,
-        });
-        console.log(`"1 remaining" warning sent to ${subscriber.email}`);
-      } catch(e) {
-        console.error('Warning email error:', e.message);
-      }
-    }
-
-    // Queue follow-up email in database — survives server restarts
-    if (!subscriber.active || subscriber.plan === 'Free Valuation') {
-      try {
-        await client.query(
-          `INSERT INTO follow_up_queue (email, name, send_after)
-           VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
-          [subscriber.email, subscriber.name]
-        );
-        console.log(`Follow-up queued for ${subscriber.email} in 1 hour`);
-      } catch(e) {
-        console.error('Follow-up queue error:', e.message);
+    // ── EMAIL SEQUENCE — TRACK A (free users) ────────────────────────
+    // One email per appraisal used, each sent ONCE per person:
+    //   1st appraisal  → A1 "How did we do?"
+    //   2nd appraisal  → A2 "One appraisal left"
+    //   3rd appraisal  → A3 "That's your three"
+    // The unique index on (email, email_type) means a repeated trigger is
+    // silently ignored rather than sending a duplicate.
+    if (updated.plan === 'Free Valuation') {
+      const stage = { 1: 'A1', 2: 'A2', 3: 'A3' }[updated.deep_analyses_used];
+      if (stage) {
+        try {
+          const q = await client.query(
+            `INSERT INTO follow_up_queue (email, name, send_after, email_type)
+             VALUES ($1, $2, NOW() + INTERVAL '1 hour', $3)
+             ON CONFLICT DO NOTHING
+             RETURNING id`,
+            [subscriber.email, subscriber.name, stage]
+          );
+          if (q.rowCount > 0) {
+            console.log(`Queued ${stage} for ${subscriber.email} (appraisal ${updated.deep_analyses_used})`);
+          } else {
+            console.log(`${stage} already queued/sent for ${subscriber.email} — skipped`);
+          }
+        } catch(e) {
+          console.error('Follow-up queue error:', e.message);
+        }
       }
     }
 
@@ -1407,7 +1486,7 @@ async function processFollowUpQueue() {
       // subscribed at send time. Someone may have subscribed between being
       // queued and this running — pitching a subscription to an existing
       // paying customer looks careless and undermines trust.
-      `SELECT q.id, q.email, q.name
+      `SELECT q.id, q.email, q.name, q.email_type
          FROM follow_up_queue q
          LEFT JOIN subscribers s ON LOWER(s.email) = LOWER(q.email)
         WHERE q.sent = FALSE
@@ -1416,12 +1495,20 @@ async function processFollowUpQueue() {
         LIMIT 10`
     );
     for (const row of result.rows) {
-      try {
-        await sendValuationFollowUp(row.email, row.name);
+      const type = row.email_type || 'A3';
+      const send = SEQUENCE_SENDERS[type];
+      if (!send) {
+        // Unknown type — mark sent so it can't block the queue forever.
+        console.error(`No sender for email_type "${type}" — retiring row ${row.id}`);
         await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
-        console.log(`Follow-up sent to ${row.email}`);
+        continue;
+      }
+      try {
+        await send(row.email, row.name);
+        await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
+        console.log(`${type} sent to ${row.email}`);
       } catch(e) {
-        console.error(`Follow-up failed for ${row.email}:`, e.message);
+        console.error(`${type} failed for ${row.email}:`, e.message);
       }
     }
 
