@@ -117,6 +117,35 @@ async function getEbayToken() {
   return data.access_token;
 }
 
+// ── PLAN LIMITS ────────────────────────────────────────────────────
+// What each tier actually gets. Enforced at scan time (not just in the form)
+// so the limits hold however the record was created, and so eBay quota cost
+// scales with what the subscriber pays.
+//
+//   Starter   — any 3 markets, one daily digest
+//   Collector — any 6 markets, twice daily
+//   Dealer    — all 9 markets, immediate alerts
+function planLimits(plan) {
+  const p = plan || '';
+  if (p.includes('Dealer'))    return { maxMarkets: 9, fastest: 'immediate' };
+  if (p.includes('Collector')) return { maxMarkets: 6, fastest: 'twice' };
+  return { maxMarkets: 3, fastest: 'daily' };   // Starter and anything else
+}
+
+// Downgrade a requested alert frequency to the fastest the plan allows.
+// Speed order: immediate > twice > morning/evening (daily) > weekly.
+function cappedFrequency(requested, plan) {
+  const freq = requested || 'morning';
+  const { fastest } = planLimits(plan);
+  if (fastest === 'immediate') return freq;                    // Dealer: anything
+  if (fastest === 'twice') {
+    return freq === 'immediate' ? 'twice' : freq;              // Collector
+  }
+  // Starter — daily at most
+  if (freq === 'immediate' || freq === 'twice') return 'morning';
+  return freq;                                                  // morning/evening/weekly fine
+}
+
 async function searchEbay(subscriber, token) {
   const keywords = await buildSearchKeywords(subscriber);
   // No real brief (empty/placeholder) → nothing to search, skip eBay entirely.
@@ -139,6 +168,14 @@ async function searchEbay(subscriber, token) {
   } else {
     // Legacy format — use getEbayMarketplace
     marketplaces = [getEbayMarketplace(subscriber.territories)];
+  }
+
+  // Cap the market COUNT to what the plan includes — the subscriber chooses
+  // WHICH markets; we simply take the first N they selected.
+  const { maxMarkets } = planLimits(subscriber.plan);
+  if (marketplaces.length > maxMarkets) {
+    marketplaces = marketplaces.slice(0, maxMarkets);
+    console.log(`${subscriber.email}: capped to ${maxMarkets} market(s) on their plan — ${marketplaces.join(', ')}`);
   }
 
   const allListings = [];
@@ -1456,8 +1493,12 @@ async function runScouts() {
 
     for (const subscriber of subscribers) {
       try {
-        // Check alert frequency
-        const freq = subscriber.frequency || 'twice';
+        // Check alert frequency — capped to what the plan allows, so
+        // 'immediate' (the most eBay-expensive option) is a Dealer feature.
+        const freq = cappedFrequency(subscriber.frequency, subscriber.plan);
+        if (freq !== (subscriber.frequency || 'morning')) {
+          console.log(`${subscriber.email}: alert frequency capped ${subscriber.frequency} → ${freq} on their plan`);
+        }
         let shouldAlert = false;
 
         if (freq === 'immediate') {
