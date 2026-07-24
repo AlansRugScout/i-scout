@@ -1029,11 +1029,119 @@ async function sendA3(email, name) {
 }
 
 // Router — maps a queued email_type to its sender.
+// ── TRACK B — SUBSCRIBERS ──────────────────────────────────────────
+
+// B1 · immediately on subscribing (fires from BOTH rails: Stripe + RevenueCat)
+async function sendB1(email, name, allowance) {
+  const f = firstNameOf(name);
+  const n = allowance || 20;
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: `Welcome to 3scouts, ${f}`,
+    html: sequenceEmailHtml({
+      kicker: '3scouts · Welcome',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `Thank you for subscribing. 3scouts is a small operation and every subscriber matters to us.`,
+        `You now have <strong>${n} Deep Analyses a month</strong>. But the first thing I'd ask you to do takes two minutes and it's the part people most often leave until later:`,
+        `<strong>Set up Scout One.</strong>`,
+        `Tell us what you collect — the more specific the better — and we'll watch eBay for you around the clock across the markets you choose. When something interesting appears, you'll get it in your inbox with a full value assessment and a BUY, WATCH or PASS recommendation. Until you've told us what you're after, Scout One is sitting idle, and that's the part of your subscription doing the most work.`,
+        `A brief like <em>"Antique Persian rugs — Kashan or Tabriz, hand-knotted, pre-1940, good pile"</em> works far better than <em>"oriental rugs"</em>. Specific beats broad every time.`,
+        `And for Deep Analysis appraisals: take photos in natural light, photograph the back and base, get in close on any hallmark or signature, and tell us anything you know about where it came from.`,
+        `Any questions at all, just reply to this — it comes straight to me.`,
+      ],
+      button: { url: `${process.env.SITE_URL}/#brief`, label: 'Set up Scout One →' },
+    }),
+  });
+}
+
+// B2 · day 3 — ONLY sent if no brief has been set (checked at send time)
+async function sendB2(email, name) {
+  const f = firstNameOf(name);
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: `Let's get Scout One working for you`,
+    html: sequenceEmailHtml({
+      kicker: '3scouts · A note from us',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `I noticed Scout One hasn't been set up yet — which means it isn't yet doing the job you're paying it for.`,
+        `It really is a two-minute thing. Tell us what you collect and we'll start watching eBay for it within the hour.`,
+        `If you're not sure how to word your brief, reply to this and tell me what you're after in plain English — I'll write it for you.`,
+      ],
+      button: { url: `${process.env.SITE_URL}/#brief`, label: 'Set up Scout One →' },
+    }),
+  });
+}
+
+// B3 · day 14 — how it's going + review request
+async function sendB3(email, name) {
+  const f = firstNameOf(name);
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: 'Found anything yet?',
+    html: sequenceEmailHtml({
+      kicker: '3scouts · A note from us',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `You're a fortnight in. I'd like to know how you're getting on — and whether Scout One has turned anything up that made you look twice.`,
+        `I ask partly out of curiosity and partly because the collectors using 3scouts tend to know their fields far better than any algorithm does. If the alerts are off the mark, or your brief needs tightening, tell me and I'll adjust it myself.`,
+        `And if it <em>has</em> been useful — a short review on the App Store would help more than you'd think. A new app lives or dies on its first handful of reviews.`,
+        `Either way, do reply and tell me what you've found. I collect Persian rugs and hammered silver coins myself, so I'm nosy about other people's hunting.`,
+      ],
+      button: { url: 'https://apps.apple.com/app/id6779627565?action=write-review', label: 'Leave a review →' },
+    }),
+  });
+}
+
+// B4 · day 30 — referral offer (manual fulfilment to begin with)
+async function sendB4(email, name) {
+  const f = firstNameOf(name);
+  await resend.emails.send({
+    from: '3scouts <scout@3scouts.com>',
+    reply_to: 'alan@3scouts.com',
+    to: email,
+    bcc: ['alan@aka.ie', 'akeane60@gmail.com'],
+    subject: 'A small thank-you, and an offer',
+    html: sequenceEmailHtml({
+      kicker: '3scouts · A note from us',
+      heading: `Hello ${f},`,
+      paragraphs: [
+        `A month in — thank you for sticking with us.`,
+        `Most people who collect seriously know others who do too. If you'd pass 3scouts on to one of them, here's the offer: <strong>if someone you refer subscribes, I'll add 10 Deep Analyses to your account.</strong> No limit on how many.`,
+        `Just ask them to mention your name when they sign up, or reply here and let me know who to look out for.`,
+        `And as ever — if there's something 3scouts should be doing that it isn't, I'm one reply away. Thank you.`,
+      ],
+      button: { url: process.env.SITE_URL, label: 'Share 3scouts →' },
+    }),
+  });
+}
+
+// Router — maps a queued email_type to its sender.
 const SEQUENCE_SENDERS = {
   A1: sendA1,
   A2: sendA2,
   A3: sendA3,
+  B1: sendB1,
+  B2: sendB2,
+  B3: sendB3,
+  B4: sendB4,
 };
+
+// Which track an email belongs to — determines the send-time eligibility check.
+// Track A only goes to people STILL free; Track B only to people STILL subscribed.
+function trackOf(emailType) {
+  return (emailType || 'A3').startsWith('B') ? 'B' : 'A';
+}
 
 // ── SUBSCRIBER MANAGEMENT ─────────────────────────────────────────
 
@@ -1336,7 +1444,10 @@ async function runScouts() {
     const dayOfWeek = irishTime.getDay(); // 0=Sun, 1=Mon
 
     const { rows: subscribers } = await client.query(
-      'SELECT * FROM subscribers WHERE active = true'
+      // SCOUT ONE IS A PAID FEATURE — only scan active PAID subscribers.
+      // Free ('Free Valuation') accounts are excluded so they never consume
+      // eBay quota or AI cost; they get the 3 free appraisals only.
+      "SELECT * FROM subscribers WHERE active = true AND plan IS NOT NULL AND plan <> 'Free Valuation'"
     );
 
     console.log(`Scout run started — ${subscribers.length} active subscriber(s) — ${irishTime.toLocaleString('en-IE')}`);
@@ -1477,55 +1588,116 @@ function scheduleTopOfHour() {
 
 scheduleTopOfHour();
 
+// Queue the full new-subscriber sequence. Called from BOTH payment rails
+// (Stripe checkout.session.completed and RevenueCat INITIAL_PURCHASE) so app
+// and web subscribers get an identical welcome. The unique index on
+// (email, email_type) makes this safe to call more than once — a repeat is
+// silently ignored rather than sending duplicates.
+async function queueSubscriberSequence(email, name) {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client = await pool.connect();
+  try {
+    const schedule = [
+      ['B1', '20 minutes'],  // welcome — spaced so it doesn't collide with
+                             // the Stripe trial-confirmation email
+      ['B2', '3 days'],      // only sends if no brief set by then
+      ['B3', '14 days'],     // how's it going + review request
+      ['B4', '30 days'],     // referral offer
+    ];
+    for (const [type, delay] of schedule) {
+      const r = await client.query(
+        `INSERT INTO follow_up_queue (email, name, send_after, email_type)
+         VALUES ($1, $2, NOW() + $3::interval, $4)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [email, name, delay, type]
+      );
+      if (r.rowCount > 0) console.log(`Queued ${type} for ${email} (+${delay})`);
+    }
+
+    // A subscriber should never receive the free-user upsell sequence.
+    const cleared = await client.query(
+      `UPDATE follow_up_queue SET sent = TRUE
+        WHERE LOWER(email) = LOWER($1) AND sent = FALSE AND email_type LIKE 'A%'`,
+      [email]
+    );
+    if (cleared.rowCount > 0) {
+      console.log(`Cleared ${cleared.rowCount} pending Track A email(s) for ${email} — now subscribed`);
+    }
+  } catch (err) {
+    console.error('queueSubscriberSequence error:', err.message);
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
 async function processFollowUpQueue() {
   const pool2 = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   const client2 = await pool2.connect();
   try {
+    // Pull due rows along with the recipient's CURRENT state, so eligibility
+    // is judged at send time rather than queue time (things change in between).
     const result = await client2.query(
-      // Only send the subscription follow-up to people who are STILL not
-      // subscribed at send time. Someone may have subscribed between being
-      // queued and this running — pitching a subscription to an existing
-      // paying customer looks careless and undermines trust.
-      `SELECT q.id, q.email, q.name, q.email_type
+      `SELECT q.id, q.email, q.name, q.email_type,
+              s.plan, s.description, s.deep_analyses_limit
          FROM follow_up_queue q
          LEFT JOIN subscribers s ON LOWER(s.email) = LOWER(q.email)
         WHERE q.sent = FALSE
           AND q.send_after <= NOW()
-          AND (s.id IS NULL OR s.plan IS NULL OR s.plan = 'Free Valuation')
-        LIMIT 10`
+        LIMIT 20`
     );
+
     for (const row of result.rows) {
       const type = row.email_type || 'A3';
       const send = SEQUENCE_SENDERS[type];
+
       if (!send) {
-        // Unknown type — mark sent so it can't block the queue forever.
         console.error(`No sender for email_type "${type}" — retiring row ${row.id}`);
         await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
         continue;
       }
+
+      const isSubscribed = row.plan && row.plan !== 'Free Valuation';
+      const track = trackOf(type);
+
+      // Track A is the free-user upsell — never send it to a paying customer.
+      if (track === 'A' && isSubscribed) {
+        await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
+        console.log(`Retired ${type} for ${row.email} — already subscribed`);
+        continue;
+      }
+
+      // Track B is for subscribers — skip if they've since cancelled.
+      if (track === 'B' && !isSubscribed) {
+        await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
+        console.log(`Retired ${type} for ${row.email} — no longer subscribed`);
+        continue;
+      }
+
+      // B2 is the "you haven't set a brief yet" nudge — pointless (and a bit
+      // insulting) if they have since set one.
+      if (type === 'B2') {
+        const brief = (row.description || '').trim();
+        if (brief && brief !== 'Free Valuation') {
+          await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
+          console.log(`Retired B2 for ${row.email} — brief already set`);
+          continue;
+        }
+      }
+
       try {
-        await send(row.email, row.name);
+        // B1 shows the subscriber's actual monthly allowance.
+        if (type === 'B1') {
+          await send(row.email, row.name, row.deep_analyses_limit);
+        } else {
+          await send(row.email, row.name);
+        }
         await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
         console.log(`${type} sent to ${row.email}`);
       } catch(e) {
         console.error(`${type} failed for ${row.email}:`, e.message);
       }
-    }
-
-    // Retire queue entries for anyone who has since subscribed — they no
-    // longer need the upsell, and this stops them being re-checked forever.
-    const retired = await client2.query(
-      `UPDATE follow_up_queue q
-          SET sent = TRUE
-         FROM subscribers s
-        WHERE LOWER(s.email) = LOWER(q.email)
-          AND q.sent = FALSE
-          AND q.send_after <= NOW()
-          AND s.plan IS NOT NULL
-          AND s.plan <> 'Free Valuation'`
-    );
-    if (retired.rowCount > 0) {
-      console.log(`Retired ${retired.rowCount} follow-up(s) — already subscribed`);
     }
   } finally {
     client2.release();
@@ -1541,4 +1713,5 @@ module.exports = {
   runDeepAnalysis,
   runDeepAnalysisFromDescription,
   processFollowUpQueue,
+  queueSubscriberSequence,
 };
