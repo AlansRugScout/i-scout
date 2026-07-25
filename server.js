@@ -1411,26 +1411,21 @@ app.post('/account/request-access', async (req, res) => {
       from: '3scouts <scout@3scouts.com>',
       reply_to: 'alan@3scouts.com',
       to: email,
-      subject: 'Your 3scouts account link',
+      subject: `Your 3scouts sign-in code: ${code}`,
       html: `
-        <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
-          <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
-            <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Account access</p>
-            <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your account link, ${name}</h2>
+        <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#ffffff;padding:0;border-top:4px solid #c9922a;">
+          <div style="padding:1.75rem 1.5rem 0.5rem;">
+            <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 12px;text-transform:uppercase;">3scouts</p>
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Hello ${name},</p>
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Here is the code to sign in to your 3scouts account. Enter it on the sign-in screen to continue.</p>
+            <p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#2c1f0e;margin:1.25rem 0;font-family:Georgia,serif;">${code}</p>
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">The code is valid for 10 minutes. If you did not ask to sign in, you can safely ignore this message and nothing will happen.</p>
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.5rem;">Prefer to use the website? You can also open your account here: <a href="${accountUrl}" style="color:#8b6344;">3scouts.com/account</a></p>
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:1.5rem 0 0.25rem;">Best wishes,</p>
+            <p style="font-size:15px;color:#2c1f0e;line-height:1.5;margin:0 0 1.5rem;">Alan Keane<br><span style="color:#8b6344;font-size:13px;">Founder, 3scouts</span></p>
           </div>
-          <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-            <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.25rem;">Click below to access your 3scouts account — check your remaining analyses, submit items for valuation, and view your recent reports.</p>
-            <a href="${accountUrl}" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:3px;text-decoration:none;">Go to my account →</a>
-            <div style="margin-top:1.5rem;padding:1.25rem;background:#2c1f0e;border-radius:4px;text-align:center;">
-              <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 8px;text-transform:uppercase;">Using the 3scouts app?</p>
-              <p style="font-size:13px;color:rgba(255,253,247,0.6);margin:0 0 10px;">Enter this code to sign in:</p>
-              <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#e8b84b;margin:0;font-family:Georgia,serif;">${code}</p>
-              <p style="font-size:11px;color:rgba(255,253,247,0.35);margin:10px 0 0;">Expires in 10 minutes</p>
-            </div>
-            <p style="font-size:13px;color:#8b6344;margin-top:1.25rem;line-height:1.6;">This link is personal to your account — please don't share it. It doesn't expire.</p>
-          </div>
-          <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
-            <p style="font-size:12px;color:#8b6344;margin:0;">3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a></p>
+          <div style="border-top:1px solid #e8d9b5;padding:1rem 1.5rem;">
+            <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">3scouts — antiques &amp; collectibles appraisal. Dublin, Ireland.<br>Questions? Just reply, or email <a href="mailto:alan@3scouts.com" style="color:#8b6344;">alan@3scouts.com</a></p>
           </div>
         </div>
       `,
