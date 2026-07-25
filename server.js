@@ -1246,7 +1246,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
       </div>
       <span style="font-family:Cinzel,serif;font-size:1.05rem;font-weight:700;color:#e8b84b;">3scouts<span style="font-size:0.7rem;color:#c9922a;">.com</span></span>
     </a>
-    <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="/privacy-policy.html" style="color:rgba(255,255,255,0.4);">Privacy Policy</a> &nbsp;·&nbsp; <a href="/terms.html" style="color:rgba(255,255,255,0.4);">Terms</a></div>
+    <div class="footer-right">Powered by Anthropic &amp; Claude Advanced Vision &nbsp;·&nbsp; <a href="/privacy" style="color:rgba(255,255,255,0.4);">Privacy Policy</a> &nbsp;·&nbsp; <a href="/terms.html" style="color:rgba(255,255,255,0.4);">Terms</a></div>
   </div>
 </footer>
 
