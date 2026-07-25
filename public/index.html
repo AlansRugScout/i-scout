@@ -1269,6 +1269,7 @@ footer {
                 <input type="checkbox" name="territories" value="EBAY_ES" style="width:16px;height:16px;accent-color:var(--gold);"> Spain
               </label>
             </div>
+            <p id="market-counter" style="font-family:'EB Garamond',serif;font-size:13px;color:var(--sepia);margin-top:0.5rem;"></p>
           </div>
           <div class="form-group">
             <label for="frequency">Alert frequency</label>
@@ -1279,6 +1280,7 @@ footer {
               <option value="weekly">Weekly summary (Monday morning)</option>
               <option value="immediate">As they happen (immediate)</option>
             </select>
+            <p id="freq-note" style="font-family:'EB Garamond',serif;font-size:13px;color:var(--sepia);font-style:italic;margin-top:0.4rem;"></p>
             <p class="form-hint">You can change this anytime by emailing <a href="mailto:alan@3scouts.com" style="color:var(--gold);">alan@3scouts.com</a></p>
           </div>
         </div>
@@ -1694,6 +1696,13 @@ async function handleSubmit(e) {
     alert('Please select at least one eBay market to search.');
     return;
   }
+  // Guard against more markets than the chosen plan allows.
+  const planVal = document.getElementById('plan').value;
+  const maxM = planVal.includes('Dealer') ? 9 : planVal.includes('Collector') ? 6 : 3;
+  if (territoriesChecked.length > maxM) {
+    alert(`Your selected plan includes any ${maxM} eBay markets. Please deselect a few.`);
+    return;
+  }
 
   const btn = document.querySelector('.form-submit');
   btn.textContent = 'Preparing your checkout…';
@@ -1759,12 +1768,73 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 document.addEventListener('DOMContentLoaded', () => {
   const planSelect = document.getElementById('plan');
   const trialNotice = document.getElementById('trial-notice');
-  if (!planSelect || !trialNotice) return;
-  function updateTrialNotice() {
-    trialNotice.style.display = planSelect.value === 'Starter — $9.99/month' ? 'block' : 'none';
+
+  // Mirrors backend planLimits() in scout-engine.js — keep in step.
+  function planLimits(planValue) {
+    const p = planValue || '';
+    if (p.includes('Dealer'))    return { maxMarkets: 9, tier: 'Dealer',    allowFreq: ['morning','evening','weekly','twice','immediate'] };
+    if (p.includes('Collector')) return { maxMarkets: 6, tier: 'Collector', allowFreq: ['morning','evening','weekly','twice'] };
+    return                              { maxMarkets: 3, tier: 'Starter',   allowFreq: ['morning','evening','weekly'] };
   }
-  planSelect.addEventListener('change', updateTrialNotice);
-  updateTrialNotice();
+
+  const marketBoxes = () => Array.from(document.querySelectorAll('input[name="territories"]'));
+  const freqSelect  = document.getElementById('frequency');
+  const counter     = document.getElementById('market-counter');
+  const freqNote    = document.getElementById('freq-note');
+  const freqLabels  = { twice: 'Collector and above', immediate: 'Dealer only' };
+
+  function currentLimits() {
+    return planLimits(planSelect ? planSelect.value : '');
+  }
+
+  function refreshMarkets() {
+    const L = currentLimits();
+    const boxes = marketBoxes();
+    // If a plan change dropped the allowance below what's ticked, untick extras.
+    let checked = boxes.filter(b => b.checked);
+    if (checked.length > L.maxMarkets) {
+      checked.slice(L.maxMarkets).forEach(b => { b.checked = false; });
+      checked = boxes.filter(b => b.checked);
+    }
+    const atLimit = checked.length >= L.maxMarkets;
+    boxes.forEach(b => {
+      const lock = atLimit && !b.checked;
+      b.disabled = lock;
+      if (b.closest('label')) b.closest('label').style.opacity = lock ? '0.4' : '1';
+    });
+    if (counter) {
+      counter.textContent = `${checked.length} of ${L.maxMarkets} markets selected on the ${L.tier} plan`;
+      counter.style.color = (atLimit && L.maxMarkets < 9) ? 'var(--red)' : 'var(--sepia)';
+    }
+  }
+
+  function refreshFrequency() {
+    const L = currentLimits();
+    let locked = false;
+    Array.from(freqSelect.options).forEach(o => {
+      const allow = L.allowFreq.includes(o.value);
+      o.disabled = !allow;
+      // reset label then append lock note if needed
+      o.textContent = o.textContent.replace(/\s+—\s+(Collector and above|Dealer only|higher plan)$/, '');
+      if (!allow) { o.textContent += `  — ${freqLabels[o.value] || 'higher plan'}`; locked = true; }
+    });
+    if (freqSelect.selectedOptions[0] && freqSelect.selectedOptions[0].disabled) freqSelect.value = 'morning';
+    if (freqNote) freqNote.textContent = locked ? 'Faster alerts are available on higher plans.' : '';
+  }
+
+  function updateTrialNotice() {
+    if (trialNotice) trialNotice.style.display = (planSelect.value === 'Starter — $9.99/month') ? 'block' : 'none';
+  }
+
+  function onPlanChange() {
+    updateTrialNotice();
+    refreshMarkets();
+    refreshFrequency();
+  }
+
+  if (planSelect) planSelect.addEventListener('change', onPlanChange);
+  marketBoxes().forEach(b => b.addEventListener('change', refreshMarkets));
+  onPlanChange();
 });
 </script>
 
