@@ -73,6 +73,12 @@ async function initDatabase() {
       ALTER TABLE follow_up_queue
       ADD COLUMN IF NOT EXISTS email_type VARCHAR(8) DEFAULT 'A3'
     `);
+    // Marketing-email opt-out. Transactional mail (codes, the appraisal report
+    // itself, billing) still sends; only the nudge sequence checks this.
+    await client.query(`
+      ALTER TABLE subscribers
+      ADD COLUMN IF NOT EXISTS unsubscribed BOOLEAN DEFAULT FALSE
+    `);
     // Guarantees each person receives each email in the sequence ONCE,
     // however many times the trigger fires.
     await client.query(`
@@ -963,6 +969,17 @@ async function sendValuationEmail(subscriber, description, analysisText, imageDa
 // ── EMAIL SEQUENCE — SHARED WRAPPER ────────────────────────────────
 // Keeps the 3scouts chrome in one place so every email in the sequence
 // looks identical and only the copy changes.
+// Set by the queue processor before each sequence send, so the shared wrapper
+// can add a personalised unsubscribe link + List-Unsubscribe header without
+// changing every sender's signature.
+let _currentUnsubToken = null;
+
+function unsubUrl() {
+  return _currentUnsubToken
+    ? `${process.env.SITE_URL}/unsubscribe?t=${_currentUnsubToken}`
+    : `${process.env.SITE_URL}/unsubscribe`;
+}
+
 function sequenceEmailHtml({ kicker, heading, paragraphs, button }) {
   const body = paragraphs.map(p =>
     `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">${p}</p>`
@@ -987,6 +1004,9 @@ function sequenceEmailHtml({ kicker, heading, paragraphs, button }) {
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
             3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · No contracts · Cancel anytime
+          </p>
+          <p style="font-size:11px;color:#a08a6a;margin:6px 0 0;line-height:1.5;">
+            You're receiving this because you used 3scouts. <a href="${unsubUrl()}" style="color:#8b6344;">Unsubscribe from these emails</a>.
           </p>
         </div>
       </div>
@@ -1681,7 +1701,8 @@ async function processFollowUpQueue() {
     // is judged at send time rather than queue time (things change in between).
     const result = await client2.query(
       `SELECT q.id, q.email, q.name, q.email_type,
-              s.plan, s.description, s.deep_analyses_limit
+              s.plan, s.description, s.deep_analyses_limit,
+              s.unsubscribed, s.access_token
          FROM follow_up_queue q
          LEFT JOIN subscribers s ON LOWER(s.email) = LOWER(q.email)
         WHERE q.sent = FALSE
@@ -1692,6 +1713,14 @@ async function processFollowUpQueue() {
     for (const row of result.rows) {
       const type = row.email_type || 'A3';
       const send = SEQUENCE_SENDERS[type];
+
+      // Honour marketing opt-out — every email in this sequence is a nudge,
+      // so an unsubscribed person gets none of them.
+      if (row.unsubscribed) {
+        await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
+        console.log(`Retired ${type} for ${row.email} — unsubscribed`);
+        continue;
+      }
 
       if (!send) {
         console.error(`No sender for email_type "${type}" — retiring row ${row.id}`);
@@ -1728,12 +1757,15 @@ async function processFollowUpQueue() {
       }
 
       try {
+        // Give the shared wrapper this person's unsubscribe token.
+        _currentUnsubToken = row.access_token || null;
         // B1 shows the subscriber's actual monthly allowance.
         if (type === 'B1') {
           await send(row.email, row.name, row.deep_analyses_limit);
         } else {
           await send(row.email, row.name);
         }
+        _currentUnsubToken = null;
         await client2.query('UPDATE follow_up_queue SET sent = TRUE WHERE id = $1', [row.id]);
         console.log(`${type} sent to ${row.email}`);
       } catch(e) {
