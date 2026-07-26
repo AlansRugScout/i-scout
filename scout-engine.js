@@ -950,8 +950,8 @@ async function sendValuationEmail(subscriber, description, analysisText, imageDa
         ${(!subscriber.plan || subscriber.plan === 'Free Valuation') ? `
         <div style="background:#2c1f0e;padding:1.25rem 1.5rem;border-bottom:1px solid #c9922a;">
           <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1px;text-transform:uppercase;margin:0 0 0.5rem;">Enjoyed your appraisal?</p>
-          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. Your first 7 days are free.</p>
-          <a href="https://www.3scouts.com/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;border-radius:3px;text-decoration:none;">Start my free trial →</a>
+          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;margin:0 0 1rem;">Subscribe to get 20 Deep Analyses per month — plus continuous eBay monitoring for whatever you collect. From $9.99/month, cancel anytime.</p>
+          <a href="https://www.3scouts.com/#brief" style="display:inline-block;background:#c9922a;color:#2c1f0e;font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;border-radius:3px;text-decoration:none;">See subscription plans →</a>
         </div>` : ''}
 
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
