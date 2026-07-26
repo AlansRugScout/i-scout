@@ -980,7 +980,19 @@ function unsubUrl() {
     : `${process.env.SITE_URL}/unsubscribe`;
 }
 
-function sequenceEmailHtml({ kicker, heading, paragraphs, button }) {
+const APP_STORE_BANNER = `
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:1.5rem 0 0;background:#2c1f0e;border-radius:4px;border-top:3px solid #c9922a;">
+        <tr><td style="padding:1.25rem 1.5rem;text-align:center;">
+          <p style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 6px;text-transform:uppercase;">Take 3scouts with you</p>
+          <p style="font-family:Georgia,serif;font-size:14px;color:rgba(255,253,247,0.75);line-height:1.6;margin:0 0 14px;">Photograph any item and get a full appraisal — one tap from your home screen.</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;"><tr>
+            <td style="padding:0 6px;"><a href="https://apps.apple.com/app/3scouts/id6779627565" target="_blank" style="text-decoration:none;"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download 3scouts on the App Store" height="44" style="height:44px;width:auto;display:block;border:0;" /></a></td>
+            <td style="padding:0 6px;"><a href="https://play.google.com/store/apps/details?id=com.alankeane.x3scouts" target="_blank" style="text-decoration:none;"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get 3scouts on Google Play" height="44" style="height:44px;width:auto;display:block;border:0;" /></a></td>
+          </tr></table>
+        </td></tr>
+      </table>`;
+
+function sequenceEmailHtml({ kicker, heading, paragraphs, button, showAppBanner }) {
   const body = paragraphs.map(p =>
     `<p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">${p}</p>`
   ).join('\n          ');
@@ -1001,6 +1013,7 @@ function sequenceEmailHtml({ kicker, heading, paragraphs, button }) {
           <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:1.5rem 0 0;">Best wishes,</p>
           <p style="font-size:15px;color:#2c1f0e;line-height:1.5;margin:0.5rem 0 0;">Alan Keane<br><span style="color:#8b6344;font-size:13px;">Founder, 3scouts</span></p>
         </div>
+        ${showAppBanner ? APP_STORE_BANNER : ''}
         <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
           <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">
             3scouts.com · <a href="mailto:alan@3scouts.com" style="color:#c9922a;">alan@3scouts.com</a> · No contracts · Cancel anytime
@@ -1081,6 +1094,7 @@ async function sendA3(email, name) {
         `Whatever you decide, thank you for giving 3scouts a go. If there's something that would make it more useful to you, I'd like to hear it — just reply directly to me.`,
       ],
       button: { url: `${process.env.SITE_URL}/#brief`, label: 'See the plans →' },
+      showAppBanner: true,
     }),
   });
 }
@@ -1111,6 +1125,7 @@ async function sendB1(email, name, allowance) {
         `Any questions at all, just reply to this — it comes straight to me.`,
       ],
       button: { url: `${process.env.SITE_URL}/#brief`, label: 'Set up Scout One →' },
+      showAppBanner: true,
     }),
   });
 }
