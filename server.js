@@ -149,64 +149,26 @@ async function sendOwnerAlert(data) {
 
 async function sendWelcomeEmail(data) {
   const { name, email, plan } = data;
-  const description = data.description || data.category;
-
-  const trialEndDate = new Date();
-  trialEndDate.setDate(trialEndDate.getDate() + 7);
-  const trialEndFormatted = trialEndDate.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+  const firstName = (name || '').trim().split(' ')[0] || 'there';
 
   await resend.emails.send({
     from: '3scouts <scout@3scouts.com>',
     reply_to: 'alan@3scouts.com',
     to: email,
-    subject: `Your 3scouts 7-day free trial is active`,
+    subject: 'Your 3scouts subscription is confirmed',
     html: `
-      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#f5edd6;padding:0;border-top:4px solid #c9922a;">
-
-        <div style="background:#2c1f0e;padding:1rem 1.5rem;border-bottom:2px solid #c9922a;">
-          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 4px;text-transform:uppercase;">3scouts · Welcome</p>
-          <h2 style="font-size:1.1rem;font-weight:500;color:#fffdf7;margin:0;">Your 7-day free trial is active</h2>
-          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:5px 0 0;">${plan}</p>
+      <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#ffffff;padding:0;border-top:4px solid #c9922a;">
+        <div style="padding:1.75rem 1.5rem 0.5rem;">
+          <p style="font-size:11px;letter-spacing:2px;color:#c9922a;margin:0 0 12px;text-transform:uppercase;">3scouts · Payment confirmation</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Hello ${firstName},</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">This confirms your 3scouts subscription: <strong>${plan}</strong>. Payment was successful, and it renews monthly until you cancel. You can manage or cancel anytime — one click, no questions.</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1.5rem;"><a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#8b6344;">Manage my subscription</a></p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">A separate email is on its way with how to get the most from your subscription — including setting up Scout One.</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:1.5rem 0 0.25rem;">Best wishes,</p>
+          <p style="font-size:15px;color:#2c1f0e;line-height:1.5;margin:0 0 1.5rem;">Alan Keane<br><span style="color:#8b6344;font-size:13px;">Founder, 3scouts</span></p>
         </div>
-
-        <div style="padding:1.5rem;background:#ffffff;border-bottom:1px solid #e8d9b5;">
-          <p style="font-size:15px;color:#2c1f0e;line-height:1.85;margin:0 0 1rem;">Dear ${name},</p>
-          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1rem;">
-            Your 3scouts subscription is confirmed and your Scout is now watching eBay around the clock for <strong style="color:#2c1f0e;">${description}</strong>.
-          </p>
-          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">
-            The moment a genuine find appears you'll receive a digest alert with listing image, price and our quick valuation estimate. Click <strong style="color:#2c1f0e;">Deep Analysis</strong> on any find for the full professional appraisal.
-          </p>
-          <p style="font-size:15px;color:#5a3e20;line-height:1.85;margin:0 0 1.5rem;">
-            Your Deep Analysis allowance works both ways — request an appraisal on any eBay listing your Scout finds, <em>or</em> submit photos of anything you already own or are considering buying. Inherited something and not sure what it's worth? Spotted something in a shop or at auction? That's what your allowance is for.
-          </p>
-
-          <div style="background:#f5edd6;border:1px solid #e8d9b5;border-left:4px solid #c9922a;padding:1rem 1.25rem;margin-bottom:1.25rem;border-radius:0 3px 3px 0;">
-            <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#c9922a;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 0.5rem;">Your free trial</p>
-            <p style="font-size:14px;color:#2c1f0e;line-height:1.75;margin:0;">
-              Your trial runs until <strong>${trialEndFormatted}</strong>. We'll send you a reminder before it ends so there are no surprises.<br><br>
-              If you decide 3scouts isn't for you, cancel any time before <strong>${trialEndFormatted}</strong> and you won't be charged a penny. Cancelling takes one click — no forms, no phone calls, no questions asked.
-            </p>
-          </div>
-
-          <div style="background:#f5edd6;border:1px solid #e8d9b5;border-left:4px solid #2c1f0e;padding:1rem 1.25rem;margin-bottom:1.5rem;border-radius:0 3px 3px 0;">
-            <p style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#2c1f0e;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 0.5rem;">What happens next</p>
-            <ol style="color:#5a3e20;font-size:14px;line-height:1.8;padding-left:1.25rem;margin:0;">
-              <li>Your Scout begins monitoring eBay immediately across multiple marketplaces</li>
-              <li>Matches arrive as a digest alert with images and our quick estimate</li>
-              <li>Request a Deep Analysis on any eBay find for the full professional appraisal</li>
-              <li>Or take a photo of anything you own or are considering buying and request a Deep Analysis — identification, maker, condition, comparable sales and valuation, usually within the hour</li>
-              <li>To refine your brief anytime, reply to this email</li>
-            </ol>
-          </div>
-
-          <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="display:inline-block;background:transparent;color:#2c1f0e;font-family:Georgia,serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;border-radius:3px;text-decoration:none;border:1px solid #b8945a;white-space:nowrap;">Manage my subscription →</a>
-        </div>
-
-        <div style="background:#e8d9b5;padding:0.75rem 1.5rem;">
-          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.7;">
-            To cancel your free trial at any time, click <a href="https://billing.stripe.com/p/login/28E14g5sbcDi5nOc9b9Ve00" style="color:#c9922a;">Manage my subscription</a> — one click, instant, no questions asked. &nbsp;·&nbsp; <a href="https://www.3scouts.com" style="color:#c9922a;">3scouts.com</a>
-          </p>
+        <div style="border-top:1px solid #e8d9b5;padding:1rem 1.5rem;">
+          <p style="font-size:12px;color:#8b6344;margin:0;line-height:1.6;">3scouts — antiques &amp; collectibles appraisal. Dublin, Ireland.<br>Questions? Just reply, or email <a href="mailto:alan@3scouts.com" style="color:#8b6344;">alan@3scouts.com</a></p>
         </div>
       </div>
     `
@@ -392,7 +354,9 @@ app.post('/create-checkout-session', async (req, res) => {
         frequency:   frequency || 'immediate',
       },
       subscription_data: {
-        ...(plan === 'trial' ? { trial_period_days: 7 } : {}),
+        // No free trial — the free tier is now 3 free appraisals (no card),
+        // and subscriptions charge immediately. (The 'trial' key is just the
+        // internal name for the Starter price.)
         metadata: {
           plan:     planLabels[plan],
           name:     name || '',
@@ -571,7 +535,7 @@ app.post('/request-valuation', async (req, res) => {
             error: 'already_used',
             name: name || 'there',
             email: email,
-            message: 'You have used all 3 of your free appraisals. Start your 7-day free trial to get 10 reports/month plus eBay monitoring.'
+            message: 'You have used all 3 of your free appraisals. Subscribe from $9.99/month to get 20 Deep Analyses per month plus eBay monitoring.'
           });
         }
         runDeepAnalysisFromDescription(sub.id, description, images || [])
