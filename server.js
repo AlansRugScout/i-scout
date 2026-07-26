@@ -1552,6 +1552,47 @@ app.post('/account/save-brief', async (req, res) => {
 });
 // ── ACCOUNT PORTAL ─────────────────────────────────────────────
 
+// One-click unsubscribe from marketing emails (link in every sequence email).
+// Transactional mail — sign-in codes, the appraisal report, billing notices —
+// is unaffected; this only stops the nudge sequence.
+app.get('/unsubscribe', async (req, res) => {
+  const t = (req.query.t || '').trim();
+  const page = (title, body) => `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${title} — 3scouts</title>
+    <style>body{font-family:Georgia,serif;background:#f5edd6;color:#2c1f0e;max-width:520px;margin:0 auto;padding:3rem 1.5rem;line-height:1.7}
+    h1{font-size:1.4rem;color:#2c1f0e}a{color:#c9922a}.box{background:#fff;border-left:4px solid #c9922a;padding:1.25rem 1.5rem;border-radius:3px}</style>
+    </head><body><div class="box"><h1>${title}</h1>${body}</div></body></html>`;
+
+  if (!/^[a-f0-9]{32}$/.test(t)) {
+    return res.status(400).send(page('Link not recognised',
+      `<p>This unsubscribe link doesn't look valid. If you'd like to opt out of emails, just reply to any 3scouts email and we'll take care of it.</p><p><a href="/">Back to 3scouts.com</a></p>`));
+  }
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const client = await pool.connect();
+    const r = await client.query(
+      'UPDATE subscribers SET unsubscribed = TRUE WHERE access_token = $1 RETURNING email',
+      [t]
+    );
+    client.release();
+    await pool.end();
+    if (r.rowCount === 0) {
+      return res.status(404).send(page('Already done',
+        `<p>We couldn't find a matching subscription — you may already be unsubscribed. If you still receive emails, reply to any of them and we'll sort it.</p><p><a href="/">Back to 3scouts.com</a></p>`));
+    }
+    return res.send(page('You\'re unsubscribed',
+      `<p>You won't receive any more promotional emails from 3scouts. You'll still get essential messages about your account — sign-in codes, appraisal reports you request, and billing.</p>
+       <p>Changed your mind? Just reply to any 3scouts email and we'll add you back.</p>
+       <p><a href="/">Back to 3scouts.com</a></p>`));
+  } catch (err) {
+    console.error('Unsubscribe error:', err.message);
+    return res.status(500).send(page('Something went wrong',
+      `<p>We couldn't process that just now. Please reply to any 3scouts email and we'll unsubscribe you manually.</p>`));
+  }
+});
+
 app.get('/privacy', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'privacy.html'));
 });
