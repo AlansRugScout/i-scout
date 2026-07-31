@@ -22,12 +22,18 @@ const { Pool } = require('pg');
 //    the IAP path grants the IDENTICAL monthly allowance as Stripe does.
 //    Labels must match your existing planLabels exactly (em dash included).
 const IAP_PLANS = {
+  // Apple (App Store) product IDs
   'com.alankeane.3scouts.starter.monthly':   { plan: '3scouts Starter — $9.99/month',   limit: 20 },
   'com.alankeane.3scouts.collector.monthly': { plan: '3scouts Collector — $19.99/month', limit: 60 },
   'com.alankeane.3scouts.dealer.month':      { plan: '3scouts Dealer — $49.99/month',    limit: 150 },
+  // Google Play product IDs — RevenueCat sends subscriptions as "<product>:<base_plan>".
+  'starter_monthly:monthly':   { plan: '3scouts Starter — $9.99/month',   limit: 20 },
+  'collector_monthly:monthly': { plan: '3scouts Collector — $19.99/month', limit: 60 },
+  'dealer_monthly:monthly':    { plan: '3scouts Dealer — $49.99/month',    limit: 150 },
 };
 
-const TOPUP_PRODUCT_ID = 'com.alankeane.3scouts.topup10';
+// Both stores' top-up product IDs credit the same amount.
+const TOPUP_PRODUCT_IDS = ['com.alankeane.3scouts.topup10', 'topup_10'];
 const TOPUP_AMOUNT = 10;
 
 // A fresh billing period restores the full monthly allowance.
@@ -124,7 +130,7 @@ function setupRevenueCatWebhook(app) {
 
         // Consumable top-up — mirror the web /topup-success behaviour exactly
         case 'NON_RENEWING_PURCHASE': {
-          if (productId === TOPUP_PRODUCT_ID) {
+          if (TOPUP_PRODUCT_IDS.includes(productId)) {
             await client.query(
               'UPDATE subscribers SET deep_analyses_limit = deep_analyses_limit + $1 WHERE access_token = $2',
               [TOPUP_AMOUNT, appUserId]
