@@ -1107,7 +1107,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   .footer-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
   .footer-logo{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-lt);text-decoration:none;}
   .footer-right{font-size:12px;color:rgba(255,255,255,0.35);}
-  @media print{nav{display:none;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
+  @media print{nav{display:none;}.no-print{display:none !important;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
   @media(max-width:600px){
     nav{padding:0 1.25rem;}
     .container{padding:0 1.5rem;}
@@ -1219,8 +1219,21 @@ function savePDF(){
   const s=document.createElement('style');s.id='pdf-page-style';
   s.textContent='@page{size:A4;margin:10mm 12mm;}';
   document.head.appendChild(s);
+  // Brief on-screen hint — the browser's print dialog is how "Save as PDF"
+  // works; tell the user to pick PDF as the destination.
+  const hint=document.createElement('div');
+  hint.textContent='Tip: in the dialog, choose "Save as PDF" (or "PDF") as the destination.';
+  hint.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#2c1f0e;color:#e8b84b;'+
+    'font-family:Georgia,serif;font-size:14px;text-align:center;padding:12px;';
+  hint.className='no-print';
+  document.body.appendChild(hint);
   const t=document.title;document.title='3scouts-report';
-  window.print();document.title=t;document.head.removeChild(s);
+  setTimeout(function(){
+    window.print();
+    document.title=t;
+    document.head.removeChild(s);
+    if(hint.parentNode) hint.parentNode.removeChild(hint);
+  },400);
 }
 </script>
 </body>
