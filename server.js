@@ -1557,6 +1557,12 @@ app.get('/unsubscribe', async (req, res) => {
   }
 });
 
+// Smart download link (for the QR code): detects device and sends to the
+// right store, or shows options on desktop.
+app.get('/get', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'get.html'));
+});
+
 app.get('/privacy', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'privacy.html'));
 });
