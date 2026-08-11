@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get 3scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#1a0e05;color:#fffdf7;font-family:'EB Garamond',Georgia,serif;
+       min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:2rem;}
+  .wrap{max-width:420px;}
+  .logo{font-family:'Cinzel',serif;font-size:2rem;font-weight:700;color:#e8b84b;letter-spacing:3px;margin-bottom:0.5rem;}
+  .tag{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#c9922a;margin-bottom:2rem;}
+  p{color:rgba(255,253,247,0.75);line-height:1.7;margin-bottom:1.5rem;font-size:1.05rem;}
+  .btns{display:flex;flex-direction:column;gap:12px;margin-top:1rem;}
+  a.btn{display:block;background:#c9922a;color:#2c1f0e;text-decoration:none;font-family:'Cinzel',serif;
+        font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;padding:15px 24px;border-radius:4px;}
+  a.btn.alt{background:transparent;border:1px solid #c9922a;color:#e8b84b;}
+  .free{font-size:13px;color:#c9922a;margin-top:1.5rem;letter-spacing:1px;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">3scouts</div>
+    <div class="tag">What's It Worth?</div>
+    <p id="msg">Taking you to 3scouts…</p>
+    <div class="btns">
+      <a class="btn" id="ios" href="https://apps.apple.com/app/3scouts/id6779627565">Download on the App Store</a>
+      <a class="btn" id="android" href="https://play.google.com/store/apps/details?id=com.alankeane.x3scouts">Get it on Google Play</a>
+      <a class="btn alt" href="https://www.3scouts.com">Visit 3scouts.com</a>
+    </div>
+    <div class="free">3 free appraisals · No card required</div>
+  </div>
+
+<script>
+  (function () {
+    var ua = navigator.userAgent || navigator.vendor || window.opera;
+    var iosLink = 'https://apps.apple.com/app/3scouts/id6779627565';
+    var androidLink = 'https://play.google.com/store/apps/details?id=com.alankeane.x3scouts';
+
+    var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    var isAndroid = /android/i.test(ua);
+
+    // On mobile, redirect straight to the right store. On desktop, show buttons.
+    if (isIOS) {
+      document.getElementById('msg').textContent = 'Opening the App Store…';
+      window.location.replace(iosLink);
+    } else if (isAndroid) {
+      document.getElementById('msg').textContent = 'Opening Google Play…';
+      window.location.replace(androidLink);
+    } else {
+      // Desktop / unknown — show all options, don't auto-redirect.
+      document.getElementById('msg').textContent = 'Choose your device to download 3scouts, or visit the website.';
+    }
+  })();
+</script>
+</body>
+</html>
