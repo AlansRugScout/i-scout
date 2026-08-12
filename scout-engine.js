@@ -684,9 +684,9 @@ Their brief: ${subscriber.description}
 Please analyse this eBay listing and provide a structured Deep Analysis report covering:
 
 1. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
-2. CONDITION ASSESSMENT — Grade each visible component. Give an overall grade (A/B/C/D) with explanation.
+2. CONDITION ASSESSMENT — Assess each visible component. Then give ONE overall grade, written exactly as 'Overall Condition Grade: X' (where X is A, B, C or D), followed by a brief explanation. Only use the words 'Overall Condition Grade' once, for the single overall grade — not for individual components.
 3. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates.
-4. VALUATION — What is your fair value estimate range?
+4. VALUATION — What is your fair value estimate range? Your range MUST be grounded in the comparable sales you listed in section 3. Do NOT set an upper figure higher than your best comparables unless you explicitly justify why (e.g. superior condition, rarity, provenance) and reference which comparable supports it. Do not inflate the top of the range beyond what the evidence supports.
 5. RECOMMENDATION — Is this worth pursuing at the listed price? Plain English, no jargon. Do NOT tell the subscriber to buy immediately or not to negotiate — simply give your assessment of the value.
 6. ANY RED FLAGS — What should the buyer verify or be cautious about?
 
@@ -813,9 +813,13 @@ function parseAnalysisToHtml(analysisText) {
       continue;
     }
 
-    // Condition grade — extract grade letter and build bar
-    if (line.match(/overall.*grade|grade.*overall/i) || (sectionNum === 3 && line.match(/grade\s*[A-D][+-]?/i))) {
-      const gradeMatch = line.match(/grade\s*([A-D][+-]?)/i);
+    // Condition grade — extract grade letter and build bar.
+    // Only THE overall grade line drives the badge; component grades like
+    // "Surface: Grade C" must not hijack it (that caused headline/body mismatch).
+    if (line.match(/overall[^.]*grade|grade[^.]*overall/i)) {
+      const gradeMatch = line.match(/overall[^.]*?grade\s*[:\-]?\s*([A-D][+-]?)/i)
+                      || line.match(/grade\s*[:\-]?\s*([A-D][+-]?)[^.]*?overall/i)
+                      || line.match(/grade\s*[:\-]?\s*([A-D][+-]?)/i);
       const grade = gradeMatch ? gradeMatch[1].toUpperCase() : null;
       const gradeWidths = {'A+':100,'A':92,'A-':85,'B+':78,'B':70,'B-':62,'C+':54,'C':46,'C-':38,'D':25};
       const gradeColors = {'A+':'#1a6b2e','A':'#1a6b2e','A-':'#2d8a3e','B+':'#c9922a','B':'#c9922a','B-':'#d4882a','C+':'#8b4a1e','C':'#8b2020','C-':'#8b2020','D':'#6b1010'};
@@ -1295,9 +1299,9 @@ Their description: ${description}
 Please provide a full Deep Analysis covering:
 1. ITEM IDENTIFICATION — What is this item? Who made it? When was it made?
 2. AUTHENTICITY ASSESSMENT — Is this genuine? What evidence supports or challenges authenticity? Give a confidence percentage.
-3. CONDITION ASSESSMENT — Grade each visible aspect. Give an overall grade (A/B/C/D) with explanation.
+3. CONDITION ASSESSMENT — Assess each visible aspect. Then give ONE overall grade, written exactly as 'Overall Condition Grade: X' (where X is A, B, C or D), followed by a brief explanation. Only use the words 'Overall Condition Grade' once, for the single overall grade — not for individual aspects.
 4. COMPARABLE SALES — What have similar items sold for recently? Give 3-5 comparable examples with prices and dates if possible. Use EUR (€) or GBP (£) for valuations.
-5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£).
+5. VALUATION — What is your fair value estimate range? Express in EUR (€) or GBP (£). Your range MUST be grounded in the comparable sales you listed above. Do NOT set an upper figure higher than your best comparables unless you explicitly justify why (e.g. superior condition, rarity, provenance) and reference which comparable supports it. Do not inflate the top of the range beyond what the evidence supports.
 6. RECOMMENDATION — Is this worth pursuing or keeping at the implied value? Plain English, no jargon.
 7. ANY RED FLAGS — What should the owner verify or be cautious about?
 
