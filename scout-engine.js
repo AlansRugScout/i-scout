@@ -12,6 +12,37 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejec
 const resend = new Resend(process.env.RESEND_API_KEY);
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// ── IMAGE RESIZING ────────────────────────────────────────────────
+// Full-resolution phone photos can exceed Anthropic's ~5MB/image limit.
+// Rather than reject them, downscale server-side so any normal photo just
+// works. sharp is loaded lazily; any failure falls back to the original.
+let _sharp;
+function getSharp() {
+  if (_sharp === undefined) {
+    try { _sharp = require('sharp'); }
+    catch (e) { _sharp = null; console.log('sharp not available — images sent as-is:', e.message); }
+  }
+  return _sharp;
+}
+async function shrinkImage(base64Data, mimeType) {
+  const sharp = getSharp();
+  if (!sharp) return { data: base64Data, media_type: mimeType };
+  try {
+    const inputBuffer = Buffer.from(base64Data, 'base64');
+    const out = await sharp(inputBuffer)
+      .rotate()
+      .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return { data: out.toString('base64'), media_type: 'image/jpeg' };
+  } catch (e) {
+    console.log('shrinkImage failed, using original:', e.message);
+    return { data: base64Data, media_type: mimeType };
+  }
+}
+
+
+
 // ── DATABASE SETUP ───────────────────────────────────────────────
 
 async function initDatabase() {
@@ -1243,16 +1274,25 @@ async function runDeepAnalysisFromDescription(subscriberId, description, imageDa
     for (const dataUrl of (imageDataUrls || []).slice(0, 5)) {
       const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (matches) {
-        const base64Data = matches[2];
+        let base64Data = matches[2];
+        let mediaType = matches[1];
         const sizeChars = base64Data.length;
-        console.log(`  Image: mime=${matches[1]} size=${sizeChars} chars`);
-        // Anthropic limit is ~5MB per image (base64 ~6.7M chars)
-        // If image is too large, skip it with a warning
-        if (sizeChars > 5000000) {
-          console.log(`  ⚠ Image too large (${Math.round(sizeChars/1000)}KB base64) — skipping. Ask user to reduce photo size.`);
+        console.log(`  Image: mime=${mediaType} size=${sizeChars} chars`);
+        // Anthropic limit is ~5MB per image. Instead of rejecting a big photo,
+        // downscale it so any normal phone photo just works.
+        if (sizeChars > 4000000) {
+          const shrunk = await shrinkImage(base64Data, mediaType);
+          base64Data = shrunk.data;
+          mediaType = shrunk.media_type;
+          console.log(`  ↳ resized to ${Math.round(base64Data.length/1000)}KB base64`);
+        }
+        // Final guard: if it's STILL too big after resizing (or sharp was
+        // unavailable), skip that one image rather than fail the whole call.
+        if (base64Data.length > 5000000) {
+          console.log(`  ⚠ Image still too large after resize — skipping this one.`);
           continue;
         }
-        imageContents.push({ type: 'image', source: { type: 'base64', media_type: matches[1], data: base64Data } });
+        imageContents.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } });
       }
     }
     console.log(`runDeepAnalysis: sending ${imageContents.length} image(s) to Claude`);
