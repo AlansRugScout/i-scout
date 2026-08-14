@@ -705,10 +705,15 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (confMatch) confidence = parseInt(confMatch[1]);
 
   let grade = null;
+  // Match the OVERALL grade in any phrasing — "Overall Grade: A",
+  // "Overall Condition Grade: A", "Overall Condition Grade A", plain or +/-.
+  // (Component grades must not win — see fallback below.)
   const gradeMatch =
+    analysisText.match(/Overall\s+Condition\s+Grade[:\s]+([A-D][+-]?)/i) ||
     analysisText.match(/Overall\s+Grade[:\s]+([A-D][+-]?)/i) ||
+    analysisText.match(/Overall[^\n]{0,25}?Grade[:\s]+([A-D][+-]?)/i) ||
     analysisText.match(/Overall\s+grade[:\s]+([A-D](?:\s+(?:plus|minus))?)/i) ||
-    analysisText.match(/overall\s+condition[^\n]{0,20}([A-D][+-])/i);
+    analysisText.match(/overall\s+condition[^\n]{0,20}([A-D][+-]?)/i);
   if (gradeMatch) {
     let g = gradeMatch[1].trim()
       .replace(/\s+plus$/i, '+')
@@ -734,30 +739,30 @@ function generateReportPage(report, images, isEbay, dateStr) {
 
   let valuation = null;
   const valPatterns = [
-    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
-    /fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
-    /estimated?\s+(?:fair\s+)?(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
-    /(?:current|retail|auction|replacement)\s+(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
-    /value[^€£$\d\n]{0,20}([€£$][\d,.]+\s*(?:–|-|to)\s*[€£$][\d,.]+)/i,
-    /sell\s+for[^€£$\d\n]{0,20}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
+    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /estimated?\s+(?:fair\s+)?(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /(?:current|retail|auction|replacement)\s+(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    /value[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /sell\s+for[^€£$\d\n]{0,20}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     // Mid-market / multi-tier estimate formats
-    /mid[- ]market\s+estimate[^€£$\d]{0,80}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
-    /mid[- ]range\s+estimate[^€£$\d]{0,80}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
-    /estimate[^€£$\d]{0,60}([€£$][\d,.]+\s*(?:–|-|to)\s*[€£$][\d,.]+)/i,
-    /fair\s+value\s+range[^€£$\d\n]{0,30}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
-    /range\s+of[^€£$\d\n]{0,20}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
-    /between[^€£$\d\n]{0,20}([€£$][\d,.]+)\s*(?:and|to)\s*([€£$][\d,.]+)/i,
-    /([€£$][\d,.]+\s*(?:–|to)\s*[€£$][\d,.]+)[^\n]{0,60}(?:fair|value|estimate|valuation)/i,
-    /(?:achieve|fetch|realise|realize|command|worth|priced?)[^€£$\d\n]{0,30}([€£$][\d,.]+\s*(?:–|-|to)\s*[€£$][\d,.]+)/i,
-    /([€£$][\d,.]+\s*(?:–|-|to)\s*[€£$][\d,.]+)[^\n]{0,40}(?:achieve|fetch|realise|realize|market|auction|condition)/i,
-    /(?:valuation|valued?)[^€£$\d]{0,50}([€£$][\d,.]+\s*(?:–|-|to)\s*[€£$][\d,.]+)/i,
-    /valuation\s+(?:for[^€£$\d]{0,50})?is[:\s]+([€£$][\d,.]+\s*(?:–|-|to)\s*[€£$][\d,.]+)/i,
-    /market\s+valuation[^€£$\d]{0,80}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
-    /([€£$][\d,.]+)\s*(?:–|-|to)\s*([€£$][\d,.]+)\s*(?:at\s+)?(?:auction|market|retail|private\s+sale)/i,
+    /mid[- ]market\s+estimate[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /mid[- ]range\s+estimate[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /estimate[^€£$\d]{0,60}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /fair\s+value\s+range[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /range\s+of[^€£$\d\n]{0,20}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /between[^€£$\d\n]{0,20}([€£$][\d,]+)\s*(?:and|to)\s*([€£$][\d,]+)/i,
+    /([€£$][\d,]+\s*(?:–|to)\s*[€£$][\d,]+)[^\n]{0,60}(?:fair|value|estimate|valuation)/i,
+    /(?:achieve|fetch|realise|realize|command|worth|priced?)[^€£$\d\n]{0,30}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)[^\n]{0,40}(?:achieve|fetch|realise|realize|market|auction|condition)/i,
+    /(?:valuation|valued?)[^€£$\d]{0,50}([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /valuation\s+(?:for[^€£$\d]{0,50})?is[:\s]+([€£$][\d,]+\s*(?:–|-|to)\s*[€£$][\d,]+)/i,
+    /market\s+valuation[^€£$\d]{0,80}([€£$][\d,]+\s*(?:to|–|-)\s*[€£$][\d,]+)/i,
+    /([€£$][\d,]+)\s*(?:–|-|to)\s*([€£$][\d,]+)\s*(?:at\s+)?(?:auction|market|retail|private\s+sale)/i,
     // Fallback: first currency range found anywhere in text
-    /([€£$][\d,.]+(?:\.\d+)?)\s*(?:to|–|-)\s*([€£$][\d,.]+(?:\.\d+)?)/i,
-    /(\d[\d,.]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,.]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)/i,
-    /(?:conservative|retail|estimate|value|worth)[^€£$\d\n]{0,30}(\d[\d,.]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,.]+)/i,
+    /([€£$][\d,]+(?:\.\d+)?)\s*(?:to|–|-)\s*([€£$][\d,]+(?:\.\d+)?)/i,
+    /(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)/i,
+    /(?:conservative|retail|estimate|value|worth)[^€£$\d\n]{0,30}(\d[\d,]+)\s*(?:euro|euros|eur|gbp|usd|dollars?|pounds?)\s*(?:to|–|-)\s*(\d[\d,]+)/i,
   ];
   for (const pat of valPatterns) {
     const m = analysisText.match(pat);
