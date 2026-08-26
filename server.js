@@ -739,7 +739,14 @@ function generateReportPage(report, images, isEbay, dateStr) {
 
   let valuation = null;
   const valPatterns = [
-    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    // HIGHEST PRIORITY — the AI's actual concluding valuation sentence.
+    // These match the phrasing the report prompt produces, so the badge
+    // locks onto the CONCLUSION (and its currency) rather than a comparable
+    // figure elsewhere in the text. Decimal-aware ([\d,.]+).
+    /fair\s+estimate[^€£$\d\n]{0,40}(?:in\s+the\s+region\s+of\s+)?([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /(?:a\s+)?fair\s+(?:value\s+)?(?:estimate|range)[^€£$\d\n]{0,40}(?:is|of)[^€£$\d\n]{0,20}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /in\s+the\s+region\s+of\s+([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
     /fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     /estimated?\s+(?:fair\s+)?(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     /(?:current|retail|auction|replacement)\s+(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
@@ -784,6 +791,8 @@ function generateReportPage(report, images, isEbay, dateStr) {
       } else {
         valuation = m[1].trim();
       }
+      // Strip any trailing punctuation (e.g. a full stop caught by the regex).
+      if (valuation) valuation = valuation.replace(/[.,;]+$/, '').trim();
       break;
     }
   }
