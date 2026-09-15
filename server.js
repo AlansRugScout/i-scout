@@ -705,10 +705,15 @@ function generateReportPage(report, images, isEbay, dateStr) {
   if (confMatch) confidence = parseInt(confMatch[1]);
 
   let grade = null;
+  // Match the OVERALL grade in any phrasing — "Overall Grade: A",
+  // "Overall Condition Grade: A", "Overall Condition Grade A", plain or +/-.
+  // (Component grades must not win — see fallback below.)
   const gradeMatch =
+    analysisText.match(/Overall\s+Condition\s+Grade[:\s]+([A-D][+-]?)/i) ||
     analysisText.match(/Overall\s+Grade[:\s]+([A-D][+-]?)/i) ||
+    analysisText.match(/Overall[^\n]{0,25}?Grade[:\s]+([A-D][+-]?)/i) ||
     analysisText.match(/Overall\s+grade[:\s]+([A-D](?:\s+(?:plus|minus))?)/i) ||
-    analysisText.match(/overall\s+condition[^\n]{0,20}([A-D][+-])/i);
+    analysisText.match(/overall\s+condition[^\n]{0,20}([A-D][+-]?)/i);
   if (gradeMatch) {
     let g = gradeMatch[1].trim()
       .replace(/\s+plus$/i, '+')
@@ -734,7 +739,14 @@ function generateReportPage(report, images, isEbay, dateStr) {
 
   let valuation = null;
   const valPatterns = [
-    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
+    // HIGHEST PRIORITY — the AI's actual concluding valuation sentence.
+    // These match the phrasing the report prompt produces, so the badge
+    // locks onto the CONCLUSION (and its currency) rather than a comparable
+    // figure elsewhere in the text. Decimal-aware ([\d,.]+).
+    /fair\s+estimate[^€£$\d\n]{0,40}(?:in\s+the\s+region\s+of\s+)?([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /(?:a\s+)?fair\s+(?:value\s+)?(?:estimate|range)[^€£$\d\n]{0,40}(?:is|of)[^€£$\d\n]{0,20}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /in\s+the\s+region\s+of\s+([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
     /fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     /estimated?\s+(?:fair\s+)?(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
     /(?:current|retail|auction|replacement)\s+(?:market\s+)?value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
@@ -779,6 +791,8 @@ function generateReportPage(report, images, isEbay, dateStr) {
       } else {
         valuation = m[1].trim();
       }
+      // Strip any trailing punctuation (e.g. a full stop caught by the regex).
+      if (valuation) valuation = valuation.replace(/[.,;]+$/, '').trim();
       break;
     }
   }
@@ -828,7 +842,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   // ── Photo grid ───────────────────────────────────────────────────
   const photoGrid = images.map(img => `
     <div style="flex-shrink:0;border:2px solid var(--parchment-dk);border-radius:3px;overflow:hidden;box-shadow:0 3px 10px var(--shadow);background:#fff;">
-      <img src="${img}" alt="Item photo" loading="lazy" style="display:block;width:190px;height:155px;object-fit:cover;" onerror="this.parentElement.style.display='none'">
+      <img src="${img}" alt="Item photo" loading="lazy" style="display:block;max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;background:#fff;" onerror="this.parentElement.style.display='none'">
     </div>`).join('');
 
   // ── Build sections HTML ──────────────────────────────────────────
@@ -1107,7 +1121,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
   .footer-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
   .footer-logo{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-lt);text-decoration:none;}
   .footer-right{font-size:12px;color:rgba(255,255,255,0.35);}
-  @media print{nav{display:none;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
+  @media print{nav{display:none;}.no-print{display:none !important;}.report-header,.val-box{-webkit-print-color-adjust:exact;print-color-adjust:exact;}body{font-size:14px;}}
   @media(max-width:600px){
     nav{padding:0 1.25rem;}
     .container{padding:0 1.5rem;}
@@ -1219,8 +1233,21 @@ function savePDF(){
   const s=document.createElement('style');s.id='pdf-page-style';
   s.textContent='@page{size:A4;margin:10mm 12mm;}';
   document.head.appendChild(s);
+  // Brief on-screen hint — the browser's print dialog is how "Save as PDF"
+  // works; tell the user to pick PDF as the destination.
+  const hint=document.createElement('div');
+  hint.textContent='Tip: in the dialog, choose "Save as PDF" (or "PDF") as the destination.';
+  hint.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#2c1f0e;color:#e8b84b;'+
+    'font-family:Georgia,serif;font-size:14px;text-align:center;padding:12px;';
+  hint.className='no-print';
+  document.body.appendChild(hint);
   const t=document.title;document.title='3scouts-report';
-  window.print();document.title=t;document.head.removeChild(s);
+  setTimeout(function(){
+    window.print();
+    document.title=t;
+    document.head.removeChild(s);
+    if(hint.parentNode) hint.parentNode.removeChild(hint);
+  },400);
 }
 </script>
 </body>
@@ -1557,6 +1584,12 @@ app.get('/unsubscribe', async (req, res) => {
   }
 });
 
+// Smart download link (for the QR code): detects device and sends to the
+// right store, or shows options on desktop.
+app.get('/get', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'get.html'));
+});
+
 app.get('/privacy', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'privacy.html'));
 });
@@ -1582,7 +1615,7 @@ app.get('/account/data', async (req, res) => {
       `SELECT listing_title, completed_at, report_token, ebay_item_id
        FROM deep_analyses
        WHERE subscriber_id = $1
-       ORDER BY completed_at DESC LIMIT 60`,
+       ORDER BY completed_at DESC LIMIT 20`,
       [sub.id]
     );
     client.release();
