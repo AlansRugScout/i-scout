@@ -739,12 +739,19 @@ function generateReportPage(report, images, isEbay, dateStr) {
 
   let valuation = null;
   const valPatterns = [
-    // HIGHEST PRIORITY — the AI's actual concluding valuation sentence.
+    // TOP PRIORITY — the mandatory fixed-format conclusion line the report
+    // prompt now requires: "Fair Value Estimate: €250 to €800". This is the
+    // AI's true final figure, so it MUST win over any comparable or retail
+    // price appearing earlier in the text. Decimal-aware.
+    /Fair\s+Value\s+Estimate[:\s]+([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /Fair\s+Value\s+Estimate[:\s]+([€£$][\d,.]+)/i,
+    // NEXT — the AI's concluding valuation sentence in other phrasings.
     // These match the phrasing the report prompt produces, so the badge
     // locks onto the CONCLUSION (and its currency) rather than a comparable
     // figure elsewhere in the text. Decimal-aware ([\d,.]+).
     /fair\s+estimate[^€£$\d\n]{0,40}(?:in\s+the\s+region\s+of\s+)?([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
     /(?:a\s+)?fair\s+(?:value\s+)?(?:estimate|range)[^€£$\d\n]{0,40}(?:is|of)[^€£$\d\n]{0,20}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
+    /(?:estimated|valued)\s+at[^€£$\d\n]{0,20}([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
     /in\s+the\s+region\s+of\s+([€£$][\d,.]+\s*(?:to|–|-)\s*[€£$][\d,.]+)/i,
     /Fair\s+Market\s+Value[^€£$\d\n]{0,30}([€£$][\d,.]+(?:\s*(?:to|–|-)\s*[€£$][\d,.]+)?)/i,
     /fair\s+open\s+market\s+value[^€£$\d\n]{0,30}([€£$][\d,]+(?:\s*(?:to|–|-)\s*[€£$][\d,]+)?)/i,
@@ -975,6 +982,7 @@ function generateReportPage(report, images, isEbay, dateStr) {
     if (isVal) {
       const bodyLines = contentLines
         .filter(l => !l.match(/Fair\s+Market\s+Value/i) && !l.match(/fair\s+open\s+market/i))
+        .filter(l => !l.match(/^\s*Fair\s+Value\s+Estimate[:\s]/i))
         .map(l => l.replace(/\*\*/g,''));
       return `
   <div class="rpt-section">
